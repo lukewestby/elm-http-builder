@@ -3,6 +3,7 @@ module Http.Extra
   , withHeader, withHeaders, withBody, withStringBody, withMultipartBody
   , withTimeout, withStartHandler, withProgressHandler, withMimeType, withCredentials
   , send
+  , toRequest, toSettings
   ) where
 
 {-| Extra helpers for more easily building Http requests that require greater
@@ -20,6 +21,9 @@ configuration than what is provided by `elm-http` out of the box.
 
 # Send the request
 @docs send
+
+# Inspect the request
+@docs toRequest, toSettings
 -}
 
 import Task exposing (Task)
@@ -220,3 +224,19 @@ send : Json.Decoder a -> RequestBuilder -> Task Http.Error a
 send decoder (RequestBuilder request settings) =
   Http.send settings request
     |> Http.fromJson decoder
+
+
+{-| Extract the Http.Request component of the builder, for introspection and
+testing
+-}
+toRequest : RequestBuilder -> Http.Request
+toRequest (RequestBuilder request settings) =
+  request
+
+
+{-| Extract the Http.Settings component of the builder, for introspection and
+testing
+-}
+toSettings : RequestBuilder -> Http.Settings
+toSettings (RequestBuilder request settings) =
+  settings
