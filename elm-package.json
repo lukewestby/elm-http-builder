@@ -1,8 +1,8 @@
 {
     "version": "1.0.0",
-    "summary": "helpful summary of your project, less than 80 characters",
-    "repository": "https://github.com/user/project.git",
-    "license": "BSD3",
+    "summary": "Extra functions for more easily building Http requests",
+    "repository": "https://github.com/lukewestby/elm-http-extra.git",
+    "license": "MIT",
     "source-directories": [
         "src"
     ],
