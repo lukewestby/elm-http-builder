@@ -3,6 +3,8 @@
 Extra helpers for more easily building Http requests that require greater
 configuration than what is provided by `elm-http` out of the box.
 
+> Thanks to @fredcy, @rileylark, and @etaque for the original discussion of the API
+
 ## Example
 
 ```elm
