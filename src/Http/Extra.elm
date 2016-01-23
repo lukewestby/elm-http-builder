@@ -1,6 +1,6 @@
 module Http.Extra
   ( RequestBuilder, get, post, put, patch, delete
-  , withHeader, withHeaders, withBody
+  , withHeader, withHeaders, withBody, withStringBody, withMultipartBody
   , withTimeout, withStartHandler, withProgressHandler, withMimeType, withCredentials
   , send
   ) where
@@ -13,7 +13,7 @@ configuration than what is provided by `elm-http` out of the box.
 @docs RequestBuilder, get, post, put, patch, delete
 
 # Configure request properties
-@docs withHeader, withHeaders, withBody
+@docs withHeader, withHeaders, withBody, withStringBody, withMultipartBody
 
 # Configure settings
 @docs withTimeout, withStartHandler, withProgressHandler, withMimeType, withCredentials
@@ -134,6 +134,27 @@ withHeaders headers =
 withBody : Http.Body -> RequestBuilder -> RequestBuilder
 withBody body =
   mapRequest <| \request -> { request | body = body }
+
+
+{-| Convenience function for adding a string body to a request
+
+    post "https://example.com/api/items/1"
+      |> withHeader ("Content-Type", "application/json")
+      |> withStringBody """{ "sortBy": "coolness", "take": 10 }"""
+-}
+withStringBody : String -> RequestBuilder -> RequestBuilder
+withStringBody content =
+  withBody (Http.string content)
+
+
+{-| Convenience function for adding a multiplart body to a request
+
+      post "https://example.com/api/items/1"
+        |> withMultipartBody [Http.stringData "user" (JS.encode user)]
+-}
+withMultipartBody : List Http.Data -> RequestBuilder -> RequestBuilder
+withMultipartBody components =
+  withBody (Http.multipart components)
 
 
 {-| Set the `timeout` setting on the request
