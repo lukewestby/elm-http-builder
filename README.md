@@ -10,7 +10,7 @@ configuration than what is provided by `elm-http` out of the box.
 ```elm
 import Time
 import Http
-import Http.Extra as HttpExtra
+import Http.Extra as HttpExtra exposing (..)
 import Json.Decode as Json
 
 
