@@ -33,7 +33,7 @@ import Json.Decode as Json
 import Http
 
 
-{-| An type for chaining request configuration
+{-| A type for chaining request configuration
 -}
 type RequestBuilder =
   RequestBuilder Http.Request Http.Settings
