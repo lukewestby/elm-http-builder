@@ -1,9 +1,9 @@
 module Http.Extra
-  ( RequestBuilder, get, post, put, patch, delete
-  , withHeader, withHeaders, withBody, withStringBody, withMultipartBody
+  ( RequestBuilder, url, get, post, put, patch, delete
+  , withHeader, withHeaders, withBody, withStringBody, withMultipartBody, withMultipartStringBody
   , withTimeout, withStartHandler, withProgressHandler, withMimeType, withCredentials
-  , send
-  , toRequest, toSettings
+  , send, Error
+  , toRequest, toSettings, Request, Settings
   ) where
 
 {-| Extra helpers for more easily building Http requests that require greater
@@ -11,19 +11,19 @@ configuration than what is provided by `elm-http` out of the box.
 
 
 # Start a request
-@docs RequestBuilder, get, post, put, patch, delete
+@docs RequestBuilder, url, get, post, put, patch, delete
 
 # Configure request properties
-@docs withHeader, withHeaders, withBody, withStringBody, withMultipartBody
+@docs withHeader, withHeaders, withBody, withStringBody, withMultipartBody, withMultipartStringBody
 
 # Configure settings
 @docs withTimeout, withStartHandler, withProgressHandler, withMimeType, withCredentials
 
 # Send the request
-@docs send
+@docs send, Error
 
 # Inspect the request
-@docs toRequest, toSettings
+@docs toRequest, toSettings, Request, Settings
 -}
 
 import Task exposing (Task)
@@ -31,6 +31,35 @@ import Maybe exposing (Maybe(..))
 import Time exposing (Time)
 import Json.Decode as Json
 import Http
+
+
+{-| Re-export `Http.Error`
+-}
+type alias Error =
+  Http.Error
+
+
+{-| Re-export `Http.Request`
+-}
+type alias Request =
+  Http.Request
+
+
+{-| Re-export `Http.Settings`
+-}
+type alias Settings =
+  Http.Settings
+
+
+{-| Construct a url using String, String key value pairs for the query string.
+See `Http.url`.
+
+    googleUrl =
+      url "https://google.com" [("q", "elm")]
+-}
+url : String -> List (String, String) -> String
+url =
+  Http.url
 
 
 {-| An type for chaining request configuration
@@ -161,6 +190,20 @@ withMultipartBody components =
   withBody (Http.multipart components)
 
 
+{-| Convience function for adding multipart bodies composed of String, String
+key-value pairs. Since `Http.stringData` is currently the only `Http.Data`
+creator having this function removes the need to use the `Http.Data` type in
+your type signatures.
+
+    post "https://example.com/api/items/1"
+      |> withMultipartStringBody [("user", JS.encode user)]
+-}
+withMultipartStringBody : List (String, String) -> RequestBuilder -> RequestBuilder
+withMultipartStringBody =
+  List.map (\(key, value) -> Http.stringData key value)
+    >> withMultipartBody
+
+
 {-| Set the `timeout` setting on the request
 
     get "https://example.com/api/items/1"
@@ -220,7 +263,7 @@ withCredentials =
       |> withTimeout (10 * Time.second)
       |> send (Json.Decoder.list Json.Decoder.string)
 -}
-send : Json.Decoder a -> RequestBuilder -> Task Http.Error a
+send : Json.Decoder a -> RequestBuilder -> Task Error a
 send decoder (RequestBuilder request settings) =
   Http.send settings request
     |> Http.fromJson decoder
@@ -229,7 +272,7 @@ send decoder (RequestBuilder request settings) =
 {-| Extract the Http.Request component of the builder, for introspection and
 testing
 -}
-toRequest : RequestBuilder -> Http.Request
+toRequest : RequestBuilder -> Request
 toRequest (RequestBuilder request settings) =
   request
 
@@ -237,6 +280,6 @@ toRequest (RequestBuilder request settings) =
 {-| Extract the Http.Settings component of the builder, for introspection and
 testing
 -}
-toSettings : RequestBuilder -> Http.Settings
+toSettings : RequestBuilder -> Settings
 toSettings (RequestBuilder request settings) =
   settings
