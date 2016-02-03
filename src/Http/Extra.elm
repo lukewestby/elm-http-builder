@@ -62,7 +62,7 @@ url =
   Http.url
 
 
-{-| An type for chaining request configuration
+{-| A type for chaining request configuration
 -}
 type RequestBuilder =
   RequestBuilder Http.Request Http.Settings
