@@ -2,7 +2,7 @@ module Http.Extra
   ( RequestBuilder, url, get, post, put, patch, delete
   , withHeader, withHeaders, withBody, withStringBody, withMultipartBody, withMultipartStringBody
   , withTimeout, withStartHandler, withProgressHandler, withMimeType, withCredentials
-  , send, Error
+  , send, Error, Response
   , toRequest, toSettings, Request, Settings
   ) where
 
@@ -20,7 +20,7 @@ configuration than what is provided by `elm-http` out of the box.
 @docs withTimeout, withStartHandler, withProgressHandler, withMimeType, withCredentials
 
 # Send the request
-@docs send, Error
+@docs send, Error, Response
 
 # Inspect the request
 @docs toRequest, toSettings, Request, Settings
@@ -30,13 +30,9 @@ import Task exposing (Task)
 import Maybe exposing (Maybe(..))
 import Time exposing (Time)
 import Json.Decode as Json
-import Http
-
-
-{-| Re-export `Http.Error`
--}
-type alias Error =
-  Http.Error
+import Dict exposing (Dict)
+import Result exposing (Result(Ok, Err))
+import Http exposing (Value(Text), RawError(..))
 
 
 {-| Re-export `Http.Request`
@@ -256,6 +252,31 @@ withCredentials =
   mapSettings <| \settings -> { settings | withCredentials = True }
 
 
+{-| Represents a response from the server, including both a decoded JSON payload
+and basic network information.
+-}
+type alias Response a =
+  { data : a
+  , status : Int
+  , statusText : String
+  , headers : Dict String String
+  , url : String
+  }
+
+
+{-| Indicates that _some_ kind of failure occured along the path of making and
+receiving the request. This includes a timeout or network issue, a failure to
+parse the response body, or a status code outside the 200 range. In the case
+that the error is due to a non-2xx response code, the full response is provided
+and the data decoded as JSON using the decoder for errors passed to `send`.
+-}
+type Error a
+  = UnexpectedPayload String
+  | NetworkError
+  | Timeout
+  | BadResponse (Response a)
+
+
 {-| Once you're finished building up a request, send it with a given decoder
 
     get "https://example.com/api/items"
@@ -263,10 +284,54 @@ withCredentials =
       |> withTimeout (10 * Time.second)
       |> send (Json.Decoder.list Json.Decoder.string)
 -}
-send : Json.Decoder a -> RequestBuilder -> Task Error a
-send decoder (RequestBuilder request settings) =
+send : Json.Decoder a -> Json.Decoder b -> RequestBuilder -> Task (Error b) (Response a)
+send successDecoder errorDecoder (RequestBuilder request settings) =
   Http.send settings request
-    |> Http.fromJson decoder
+    |> Task.mapError promoteRawError
+    |> (flip Task.andThen) (handleResponse successDecoder errorDecoder)
+
+
+promoteRawError : Http.RawError -> Error a
+promoteRawError rawError =
+  case rawError of
+    RawTimeout ->
+      Timeout
+    RawNetworkError ->
+      NetworkError
+
+
+responseFromRaw : Json.Decoder a -> Http.Response -> Task (Error b) (Response a)
+responseFromRaw decoder response =
+  case response.value of
+    Text str ->
+      case Json.decodeString decoder str of
+        Ok data ->
+          Task.succeed
+            { data = data
+            , status = response.status
+            , statusText = response.statusText
+            , headers = response.headers
+            , url = response.url
+            }
+
+        Err message ->
+          Task.fail (UnexpectedPayload message)
+    _ ->
+      Task.fail (UnexpectedPayload "Response body types other than string not supported.")
+
+
+handleResponse : Json.Decoder a -> Json.Decoder b -> Http.Response -> Task (Error b) (Response a)
+handleResponse successDecoder errorDecoder response =
+  let
+    isSuccessful =
+      response.status >= 200 && response.status < 300
+  in
+    if isSuccessful then
+      responseFromRaw successDecoder response
+    else
+      responseFromRaw errorDecoder response
+        |> (flip Task.andThen) (BadResponse >> Task.fail)
+
 
 
 {-| Extract the Http.Request component of the builder, for introspection and
