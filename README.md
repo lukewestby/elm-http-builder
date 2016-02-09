@@ -9,9 +9,12 @@ configuration than what is provided by `elm-http` out of the box.
 
 ```elm
 import Time
-import Http
 import Http.Extra as HttpExtra exposing (..)
 import Json.Decode as Json
+
+
+type alias ListStringResponse =
+  HttpExtra.Response (List String)
 
 
 itemsDecoder : Json.Decoder (List String)
@@ -19,14 +22,23 @@ itemsDecoder =
   Json.list Json.string
 
 
-addItem : String -> Task Http.Error (List String)
+type alias StringError =
+  HttpExtra.Error String
+
+
+errorMessageDecoder : Json.Decoder String
+errorMessageDecoder =
+  Json.string
+
+
+addItem : String -> Task StringError ListStringResponse
 addItem item =
   HttpExtra.post "http://example.com/api/items"
     |> withBody (Http.string "{ \"item\": \"" ++ item ++ "\" }")
     |> withHeader ("Content-Type", "application/json")
     |> withTimeout (10 * Time.second)
     |> withCredentials
-    |> send itemsDecoder
+    |> send itemsDecoder errorMessageDecoder
 ```
 
 ## Contributing
