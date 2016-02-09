@@ -277,12 +277,21 @@ type Error a
   | BadResponse (Response a)
 
 
-{-| Once you're finished building up a request, send it with a given decoder
+{-| Once you're finished building up a request, send it with decoders for the
+successful response object as well as the server error response object
+
+    successDecoder : Json.Decode.Decoder (List String)
+    successDecoder =
+      Json.Decode.list Json.Decode.string
+
+    errorDecoder : Json.Decode.Decoder String)
+    errorDecoder =
+      Json.Decode.string
 
     get "https://example.com/api/items"
       |> withHeader ("Content-Type", "application/json")
       |> withTimeout (10 * Time.second)
-      |> send (Json.Decoder.list Json.Decoder.string)
+      |> send successDecoder errorDecoder
 -}
 send : Json.Decoder a -> Json.Decoder b -> RequestBuilder -> Task (Error b) (Response a)
 send successDecoder errorDecoder (RequestBuilder request settings) =
