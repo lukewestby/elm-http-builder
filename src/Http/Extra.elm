@@ -2,7 +2,7 @@ module Http.Extra
   ( RequestBuilder, url, get, post, put, patch, delete
   , withHeader, withHeaders, withBody, withStringBody, withMultipartBody, withMultipartStringBody
   , withTimeout, withStartHandler, withProgressHandler, withMimeType, withCredentials
-  , send, Error, Response
+  , send, Error(..), Response
   , toRequest, toSettings, Request, Settings
   ) where
 
