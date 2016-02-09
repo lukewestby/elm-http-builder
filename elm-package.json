@@ -1,5 +1,5 @@
 {
-    "version": "3.0.0",
+    "version": "3.0.1",
     "summary": "Extra functions for more easily building Http requests",
     "repository": "https://github.com/lukewestby/elm-http-extra.git",
     "license": "MIT",
