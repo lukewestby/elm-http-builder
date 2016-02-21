@@ -1,5 +1,7 @@
 # elm-http-extra
 
+[![ICARE](https://icarebadge.com/ICARE-white.png)](https://icarebadge.com)
+
 Extra helpers for more easily building Http requests that require greater
 configuration than what is provided by `elm-http` out of the box.
 
