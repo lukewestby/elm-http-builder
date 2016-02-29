@@ -2,7 +2,8 @@ module Http.Extra
   ( RequestBuilder, url, get, post, put, patch, delete
   , withHeader, withHeaders, withBody, withStringBody, withMultipartBody, withMultipartStringBody
   , withTimeout, withStartHandler, withProgressHandler, withMimeType, withCredentials
-  , send, Error(..), Response
+  , send
+  , BodyReader, stringReader, jsonReader, Error(..), Response
   , toRequest, toSettings, Request, Settings
   ) where
 
@@ -20,7 +21,10 @@ configuration than what is provided by `elm-http` out of the box.
 @docs withTimeout, withStartHandler, withProgressHandler, withMimeType, withCredentials
 
 # Send the request
-@docs send, Error, Response
+@docs send
+
+# Parse the response
+@docs BodyReader, stringReader, jsonReader, Error, Response
 
 # Inspect the request
 @docs toRequest, toSettings, Request, Settings
