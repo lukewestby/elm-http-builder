@@ -277,27 +277,63 @@ type Error a
   | BadResponse (Response a)
 
 
-{-| Once you're finished building up a request, send it with decoders for the
-successful response object as well as the server error response object
+{-| A function for transforming raw response bodies into a useful value. Plain
+string and JSON decoding readers are provided, and the string reader can be
+used as a basis for more custom readers. When future Http value types become
+supported matching readers will be added to extract them.
+-}
+type alias BodyReader a =
+  Http.Value -> Result String a
+
+
+{-| Attempts to read a raw response body as a plain text string, failing if the
+body is not readable as a string.
+-}
+stringReader : BodyReader String
+stringReader value =
+  case value of
+    Text string ->
+      Ok string
+    _ ->
+      Err "String reader does not support given body type."
+
+
+{-| Attempts to decode the raw response body with the given
+`Json.Decode.Decoder`, failing if the body is malformed or not readable as a
+string.
+-}
+jsonReader : Json.Decoder a -> BodyReader a
+jsonReader decoder value =
+  case value of
+    Text string ->
+      Json.decodeString decoder string
+    _ ->
+      Err "JSON reader does not support given body type."
+
+
+{-| Once you're finished building up a request, send it with readers for the
+successful response value as well as the server error response value.
+
+    -- In this example a succesful response from the server looks like
+    -- ["string", "string", "string"], and an error body might look like
+    -- "Bad Request" or something similar, such that it is a string that is
+    -- not valid JSON (it would need to look like "\"Bad Request\"" to be
+    -- decodable as JSON).
 
     successDecoder : Json.Decode.Decoder (List String)
     successDecoder =
       Json.Decode.list Json.Decode.string
 
-    errorDecoder : Json.Decode.Decoder String)
-    errorDecoder =
-      Json.Decode.string
-
     get "https://example.com/api/items"
       |> withHeader ("Content-Type", "application/json")
       |> withTimeout (10 * Time.second)
-      |> send successDecoder errorDecoder
+      |> send (jsonReader successDecoder) stringReader
 -}
-send : Json.Decoder a -> Json.Decoder b -> RequestBuilder -> Task (Error b) (Response a)
-send successDecoder errorDecoder (RequestBuilder request settings) =
+send : BodyReader a -> BodyReader b -> RequestBuilder -> Task (Error b) (Response a)
+send successReader errorReader (RequestBuilder request settings) =
   Http.send settings request
     |> Task.mapError promoteRawError
-    |> (flip Task.andThen) (handleResponse successDecoder errorDecoder)
+    |> (flip Task.andThen) (handleResponse successReader errorReader)
 
 
 promoteRawError : Http.RawError -> Error a
@@ -309,36 +345,31 @@ promoteRawError rawError =
       NetworkError
 
 
-responseFromRaw : Json.Decoder a -> Http.Response -> Task (Error b) (Response a)
-responseFromRaw decoder response =
-  case response.value of
-    Text str ->
-      case Json.decodeString decoder str of
-        Ok data ->
-          Task.succeed
-            { data = data
-            , status = response.status
-            , statusText = response.statusText
-            , headers = response.headers
-            , url = response.url
-            }
+responseFromRaw : BodyReader a -> Http.Response -> Task (Error b) (Response a)
+responseFromRaw reader response =
+  case reader response.value of
+    Ok data ->
+      Task.succeed
+        { data = data
+        , status = response.status
+        , statusText = response.statusText
+        , headers = response.headers
+        , url = response.url
+        }
 
-        Err message ->
-          Task.fail (UnexpectedPayload message)
-    _ ->
-      Task.fail (UnexpectedPayload "Response body types other than string not supported.")
+    Err message ->
+      Task.fail (UnexpectedPayload message)
 
-
-handleResponse : Json.Decoder a -> Json.Decoder b -> Http.Response -> Task (Error b) (Response a)
-handleResponse successDecoder errorDecoder response =
+handleResponse : BodyReader a -> BodyReader b -> Http.Response -> Task (Error b) (Response a)
+handleResponse successReader errorReader response =
   let
     isSuccessful =
       response.status >= 200 && response.status < 300
   in
     if isSuccessful then
-      responseFromRaw successDecoder response
+      responseFromRaw successReader response
     else
-      responseFromRaw errorDecoder response
+      responseFromRaw errorReader response
         |> (flip Task.andThen) (BadResponse >> Task.fail)
 
 
