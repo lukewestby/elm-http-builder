@@ -44,7 +44,7 @@ addItem : String -> Task (HttpExtra.Error String) (HttpExtra.Response (List Stri
 addItem item =
   HttpExtra.post "http://example.com/api/items"
     |> withBody (Http.string "{ \"item\": \"" ++ item ++ "\" }")
-    |> withHeader ("Content-Type", "application/json")
+    |> withHeader "Content-Type" "application/json"
     |> withTimeout (10 * Time.second)
     |> withCredentials
     |> send (jsonReader itemsDecoder) stringReader

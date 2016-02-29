@@ -143,9 +143,9 @@ delete =
     get "https://example.com/api/items/1"
       |> withHeader ("Content-Type", "application/json")
 -}
-withHeader : (String, String) -> RequestBuilder -> RequestBuilder
-withHeader header =
-  mapRequest <| \request -> { request | headers = header :: request.headers }
+withHeader : String -> String -> RequestBuilder -> RequestBuilder
+withHeader key value =
+  mapRequest <| \request -> { request | headers = (key, value) :: request.headers }
 
 
 {-| Add many headers to a request
