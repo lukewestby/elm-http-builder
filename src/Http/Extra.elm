@@ -1,6 +1,6 @@
 module Http.Extra
   ( RequestBuilder, url, get, post, put, patch, delete
-  , withHeader, withHeaders, withBody, withStringBody, withMultipartBody, withMultipartStringBody
+  , withHeader, withHeaders, withBody, withStringBody, withMultipartBody, withMultipartStringBody, withUrlEncodedBody
   , withTimeout, withStartHandler, withProgressHandler, withMimeType, withCredentials
   , send
   , BodyReader, stringReader, jsonReader, Error(..), Response
@@ -15,7 +15,7 @@ configuration than what is provided by `elm-http` out of the box.
 @docs RequestBuilder, url, get, post, put, patch, delete
 
 # Configure request properties
-@docs withHeader, withHeaders, withBody, withStringBody, withMultipartBody, withMultipartStringBody
+@docs withHeader, withHeaders, withBody, withStringBody, withMultipartBody, withMultipartStringBody, withUrlEncodedBody
 
 # Configure settings
 @docs withTimeout, withStartHandler, withProgressHandler, withMimeType, withCredentials
@@ -30,6 +30,7 @@ configuration than what is provided by `elm-http` out of the box.
 @docs toRequest, toSettings, Request, Settings
 -}
 
+import String
 import Task exposing (Task)
 import Maybe exposing (Maybe(..))
 import Time exposing (Time)
@@ -202,6 +203,15 @@ withMultipartStringBody : List (String, String) -> RequestBuilder -> RequestBuil
 withMultipartStringBody =
   List.map (\(key, value) -> Http.stringData key value)
     >> withMultipartBody
+
+
+{-| Convenience function for adding url encoded bodies
+  post "https://example.com/api/whatever"
+    |> withUrlEncodedBody [("user", "Evan"), ("pwd", "secret")]
+-}
+withUrlEncodedBody : List (String, String) -> RequestBuilder -> RequestBuilder
+withUrlEncodedBody body =
+  withBody <| Http.string <| joinUrlEncoded <| body
 
 
 {-| Set the `timeout` setting on the request
@@ -392,3 +402,25 @@ testing
 toSettings : RequestBuilder -> Settings
 toSettings (RequestBuilder request settings) =
   settings
+
+
+{-| Join the arguments of a list of string touples in an url encoded format
+-}
+joinUrlEncoded: List (String, String) -> String
+joinUrlEncoded args =
+  String.join "&" (List.map queryPair args)
+
+
+queryPair : (String,String) -> String
+queryPair (key,value) =
+  queryEscape key ++ "=" ++ queryEscape value
+
+
+queryEscape : String -> String
+queryEscape string =
+  string |> Http.uriEncode |> replace "%20" "+"
+
+
+replace : String -> String -> String -> String
+replace old new string =
+  string |> String.split old |> String.join new
