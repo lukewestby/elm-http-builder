@@ -210,8 +210,8 @@ withMultipartStringBody =
     |> withUrlEncodedBody [("user", "Evan"), ("pwd", "secret")]
 -}
 withUrlEncodedBody : List (String, String) -> RequestBuilder -> RequestBuilder
-withUrlEncodedBody body =
-  withBody <| Http.string <| joinUrlEncoded <| body
+withUrlEncodedBody =
+  joinUrlEncoded >> withStringBody
 
 
 {-| Set the `timeout` setting on the request
@@ -417,10 +417,10 @@ queryPair (key,value) =
 
 
 queryEscape : String -> String
-queryEscape string =
-  string |> Http.uriEncode |> replace "%20" "+"
+queryEscape =
+  Http.uriEncode >> replace "%20" "+"
 
 
 replace : String -> String -> String -> String
-replace old new string =
-  string |> String.split old |> String.join new
+replace old new =
+  String.split old >> String.join new
