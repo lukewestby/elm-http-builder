@@ -200,8 +200,8 @@ withJsonBody value =
 
 {-| Convenience function for adding a multiplart body to a request
 
-      post "https://example.com/api/items/1"
-        |> withMultipartBody [Http.stringData "user" (JS.encode user)]
+    post "https://example.com/api/items/1"
+      |> withMultipartBody [Http.stringData "user" (JS.encode user)]
 -}
 withMultipartBody : List Http.Data -> RequestBuilder -> RequestBuilder
 withMultipartBody components =
@@ -223,8 +223,9 @@ withMultipartStringBody =
 
 
 {-| Convenience function for adding url encoded bodies
-  post "https://example.com/api/whatever"
-    |> withUrlEncodedBody [("user", "Evan"), ("pwd", "secret")]
+
+    post "https://example.com/api/whatever"
+      |> withUrlEncodedBody [("user", "Evan"), ("pwd", "secret")]
 -}
 withUrlEncodedBody : List (String, String) -> RequestBuilder -> RequestBuilder
 withUrlEncodedBody =
