@@ -1,6 +1,6 @@
 module Http.Extra
   ( RequestBuilder, url, get, post, put, patch, delete
-  , withHeader, withHeaders, withBody, withStringBody, withMultipartBody, withMultipartStringBody, withUrlEncodedBody
+  , withHeader, withHeaders, withBody, withStringBody, withJsonBody, withMultipartBody, withMultipartStringBody, withUrlEncodedBody
   , withTimeout, withStartHandler, withProgressHandler, withMimeType, withCredentials
   , send
   , BodyReader, stringReader, jsonReader, Error(..), Response
@@ -15,7 +15,7 @@ configuration than what is provided by `elm-http` out of the box.
 @docs RequestBuilder, url, get, post, put, patch, delete
 
 # Configure request properties
-@docs withHeader, withHeaders, withBody, withStringBody, withMultipartBody, withMultipartStringBody, withUrlEncodedBody
+@docs withHeader, withHeaders, withBody, withStringBody, withJsonBody, withMultipartBody, withMultipartStringBody, withUrlEncodedBody
 
 # Configure settings
 @docs withTimeout, withStartHandler, withProgressHandler, withMimeType, withCredentials
@@ -34,7 +34,8 @@ import String
 import Task exposing (Task)
 import Maybe exposing (Maybe(..))
 import Time exposing (Time)
-import Json.Decode as Json
+import Json.Decode as JsonDecode
+import Json.Encode as JsonEncode
 import Dict exposing (Dict)
 import Result exposing (Result(Ok, Err))
 import Http exposing (Value(Text), RawError(..))
@@ -181,6 +182,22 @@ withStringBody content =
   withBody (Http.string content)
 
 
+{-| Convenience function for adding a JSON body to a request
+
+    params = Json.Encode.object
+      [ ("sortBy", Json.Encode.string "coolness")
+      , ("take", Json.Encode.int 10)
+      ]
+
+    post "https://example.com/api/items/1"
+      |> withHeader ("Content-Type", "application/json")
+      |> withJsonBody params
+-}
+withJsonBody : JsonEncode.Value -> RequestBuilder -> RequestBuilder
+withJsonBody value =
+  withStringBody (JsonEncode.encode 0 value)
+
+
 {-| Convenience function for adding a multiplart body to a request
 
       post "https://example.com/api/items/1"
@@ -316,11 +333,11 @@ stringReader value =
 `Json.Decode.Decoder`, failing if the body is malformed or not readable as a
 string.
 -}
-jsonReader : Json.Decoder a -> BodyReader a
+jsonReader : JsonDecode.Decoder a -> BodyReader a
 jsonReader decoder value =
   case value of
     Text string ->
-      Json.decodeString decoder string
+      JsonDecode.decodeString decoder string
     _ ->
       Err "JSON reader does not support given body type."
 
