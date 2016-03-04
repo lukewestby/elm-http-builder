@@ -143,7 +143,7 @@ delete =
 {-| Add a single header to a request
 
     get "https://example.com/api/items/1"
-      |> withHeader ("Content-Type", "application/json")
+      |> withHeader "Content-Type" "application/json"
 -}
 withHeader : String -> String -> RequestBuilder -> RequestBuilder
 withHeader key value =
@@ -163,7 +163,7 @@ withHeaders headers =
 {-| Add a body to a request for requests that allow bodies.
 
     post "https://example.com/api/items/1"
-      |> withHeader ("Content-Type", "application/json")
+      |> withHeader "Content-Type" "application/json"
       |> withBody (Http.string """{ "sortBy": "coolness", "take": 10 }""")
 -}
 withBody : Http.Body -> RequestBuilder -> RequestBuilder
@@ -174,7 +174,7 @@ withBody body =
 {-| Convenience function for adding a string body to a request
 
     post "https://example.com/api/items/1"
-      |> withHeader ("Content-Type", "application/json")
+      |> withHeader "Content-Type" "application/json"
       |> withStringBody """{ "sortBy": "coolness", "take": 10 }"""
 -}
 withStringBody : String -> RequestBuilder -> RequestBuilder
@@ -190,7 +190,7 @@ withStringBody content =
       ]
 
     post "https://example.com/api/items/1"
-      |> withHeader ("Content-Type", "application/json")
+      |> withHeader "Content-Type" "application/json"
       |> withJsonBody params
 -}
 withJsonBody : JsonEncode.Value -> RequestBuilder -> RequestBuilder
@@ -357,7 +357,7 @@ successful response value as well as the server error response value.
       Json.Decode.list Json.Decode.string
 
     get "https://example.com/api/items"
-      |> withHeader ("Content-Type", "application/json")
+      |> withHeader "Content-Type" "application/json"
       |> withTimeout (10 * Time.second)
       |> send (jsonReader successDecoder) stringReader
 -}
