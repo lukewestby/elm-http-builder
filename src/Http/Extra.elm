@@ -178,8 +178,8 @@ withBody body =
       |> withStringBody """{ "sortBy": "coolness", "take": 10 }"""
 -}
 withStringBody : String -> RequestBuilder -> RequestBuilder
-withStringBody content =
-  withBody (Http.string content)
+withStringBody =
+  Http.string >> withBody
 
 
 {-| Convenience function for adding a JSON body to a request
@@ -194,8 +194,8 @@ withStringBody content =
       |> withJsonBody params
 -}
 withJsonBody : JsonEncode.Value -> RequestBuilder -> RequestBuilder
-withJsonBody value =
-  withStringBody (JsonEncode.encode 0 value)
+withJsonBody =
+  (JsonEncode.encode 0) >> withStringBody
 
 
 {-| Convenience function for adding a multiplart body to a request
@@ -204,8 +204,8 @@ withJsonBody value =
       |> withMultipartBody [Http.stringData "user" (JS.encode user)]
 -}
 withMultipartBody : List Http.Data -> RequestBuilder -> RequestBuilder
-withMultipartBody components =
-  withBody (Http.multipart components)
+withMultipartBody =
+  Http.multipart >> withBody
 
 
 {-| Convience function for adding multipart bodies composed of String, String
