@@ -1,6 +1,7 @@
 # elm-http-extra
 
 [![ICARE](https://icarebadge.com/ICARE-white.png)](https://icarebadge.com)
+[![Build Status](https://travis-ci.org/lukewestby/elm-http-extra.svg?branch=master)](https://travis-ci.org/lukewestby/elm-http-extra)
 
 Extra helpers for more easily building and handling Http requests that require
 greater configuration than what is provided by `elm-http` out of the box.
