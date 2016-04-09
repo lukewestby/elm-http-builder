@@ -1,0 +1,115 @@
+module Tests (..) where
+
+import Task exposing (Task)
+import Time
+import ElmTest exposing (..)
+import Http
+import Http.Extra exposing (..)
+import Json.Decode as Decode
+import Json.Encode as Encode
+
+
+testStartTask : Task () ()
+testStartTask =
+  Task.succeed ()
+
+
+testProgressHandler : Maybe { loaded : Int, total : Int } -> Task () ()
+testProgressHandler =
+  always (Task.succeed ())
+
+
+toTuple : RequestBuilder -> ( Request, Settings )
+toTuple builder =
+  ( toRequest builder, toSettings builder )
+
+
+testDecoder : Decode.Decoder String
+testDecoder =
+  Decode.at [ "hello" ] Decode.string
+
+
+initialRequest : Request
+initialRequest =
+  { verb = "GET"
+  , url = "http://example.com"
+  , headers = []
+  , body = Http.empty
+  }
+
+
+all : Test
+all =
+  suite
+    "All tests"
+    [ suite
+        "Request Building"
+        [ get "http://example.com"
+            |> withHeader "Test" "Header"
+            |> withHeaders [ ( "OtherTest", "Header" ) ]
+            |> withStringBody """{ "test": "body" }"""
+            |> withTimeout (10 * Time.second)
+            |> withStartHandler testStartTask
+            |> withProgressHandler testProgressHandler
+            |> withMimeType "test/mime-type"
+            |> withCredentials
+            |> toTuple
+            |> assertEqual
+                ( { verb = "GET"
+                  , url = "http://example.com"
+                  , headers = [ ( "OtherTest", "Header" ), ( "Test", "Header" ) ]
+                  , body = Http.string """{ "test": "body" }"""
+                  }
+                , { timeout = 10 * Time.second
+                  , onStart = Just testStartTask
+                  , onProgress = Just testProgressHandler
+                  , desiredResponseType = Just "test/mime-type"
+                  , withCredentials = True
+                  }
+                )
+            |> test "should build request and settings with expected params"
+        ]
+    , suite
+        "with*Body functions"
+        [ get "http://example.com"
+            |> withStringBody "hello"
+            |> toRequest
+            |> .body
+            |> assertEqual (Http.string "hello")
+            |> test "withStringBody applies string directly"
+        , get "http://example.com"
+            |> withJsonBody (Encode.string "hello")
+            |> toRequest
+            |> .body
+            |> assertEqual (Http.string "\"hello\"")
+            |> test "withJsonBody applies a Json.Value as a string"
+        , get "http://example.com"
+            |> withUrlEncodedBody [ ( "hello", "world" ), ( "test", "stuff" ) ]
+            |> toRequest
+            |> .body
+            |> assertEqual (Http.string "hello=world&test=stuff")
+            |> test "withUrlEncodedBody encodes pairs as url components"
+          -- Until https://github.com/rtfeldman/node-elm-test/pull/37
+          -- , get "http://example.com"
+          --     |> withMultipartBody [ Http.stringData "hello" "world" ]
+          --     |> toRequest
+          --     |> .body
+          --     |> assertEqual (Http.multipart [ Http.stringData "hello" "world" ])
+          --     |> test "withMultipartBody passes through to Http.multipart"
+          -- , get "http://example.com"
+          --     |> withMultipartStringBody [ ( "hello", "world" ) ]
+          --     |> toRequest
+          --     |> .body
+          --     |> assertEqual (Http.multipart [ Http.stringData "hello" "world" ])
+          --     |> test "withMultipartStringBody first converts string pairs to string data and then passes to multipart"
+        ]
+    , suite
+        "BodyReaders"
+        [ stringReader (Http.Text "test value")
+            |> assertEqual (Ok "test value")
+            |> test "should extract a text value as a string"
+        , jsonReader testDecoder (Http.Text """{ "hello": "world" }""")
+            |> assertEqual (Ok "world")
+            |> test "should extract a json value with a decoder"
+        ]
+    ]
