@@ -5,7 +5,7 @@
 
 Chainable functions for building HTTP requests and composable functions for handling responses.
 
-**Need help? Join the #http channel in the [Elm Slack](elmlang.herokuapp.com)!**
+**Need help? Join the #http channel in the [Elm Slack](https://elmlang.herokuapp.com)!**
 
 
 > Thanks to @fredcy, @rileylark, and @etaque for the original discussion of the
