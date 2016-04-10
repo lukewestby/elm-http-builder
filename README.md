@@ -3,8 +3,9 @@
 [![ICARE](https://icarebadge.com/ICARE-white.png)](https://icarebadge.com)
 [![Build Status](https://travis-ci.org/lukewestby/elm-http-extra.svg?branch=master)](https://travis-ci.org/lukewestby/elm-http-extra)
 
-Extra helpers for more easily building and handling Http requests that require
-greater configuration than what is provided by `elm-http` out of the box.
+Chainable functions for building HTTP requests and composable functions for handling responses.
+
+**Need help? Join the #http channel in the [Elm Slack](elmlang.herokuapp.com)!**
 
 
 > Thanks to @fredcy, @rileylark, and @etaque for the original discussion of the
