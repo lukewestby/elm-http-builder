@@ -7,6 +7,12 @@ import Http
 import Http.Extra exposing (..)
 import Json.Decode as Decode
 import Json.Encode as Encode
+import Native.Polyfills
+
+
+polyfillsEnabled : Bool
+polyfillsEnabled =
+  Native.Polyfills.enabled
 
 
 testStartTask : Task () ()
@@ -89,19 +95,18 @@ all =
             |> .body
             |> assertEqual (Http.string "hello=world&test=stuff")
             |> test "withUrlEncodedBody encodes pairs as url components"
-          -- Until https://github.com/rtfeldman/node-elm-test/pull/37
-          -- , get "http://example.com"
-          --     |> withMultipartBody [ Http.stringData "hello" "world" ]
-          --     |> toRequest
-          --     |> .body
-          --     |> assertEqual (Http.multipart [ Http.stringData "hello" "world" ])
-          --     |> test "withMultipartBody passes through to Http.multipart"
-          -- , get "http://example.com"
-          --     |> withMultipartStringBody [ ( "hello", "world" ) ]
-          --     |> toRequest
-          --     |> .body
-          --     |> assertEqual (Http.multipart [ Http.stringData "hello" "world" ])
-          --     |> test "withMultipartStringBody first converts string pairs to string data and then passes to multipart"
+        , get "http://example.com"
+            |> withMultipartBody [ Http.stringData "hello" "world" ]
+            |> toRequest
+            |> .body
+            |> assertEqual (Http.multipart [ Http.stringData "hello" "world" ])
+            |> test "withMultipartBody passes through to Http.multipart"
+        , get "http://example.com"
+            |> withMultipartStringBody [ ( "hello", "world" ) ]
+            |> toRequest
+            |> .body
+            |> assertEqual (Http.multipart [ Http.stringData "hello" "world" ])
+            |> test "withMultipartStringBody first converts string pairs to string data and then passes to multipart"
         ]
     , suite
         "BodyReaders"
