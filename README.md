@@ -1,7 +1,7 @@
-# elm-http-extra
+# elm-http-builder
 
 [![ICARE](https://icarebadge.com/ICARE-white.png)](https://icarebadge.com)
-[![Build Status](https://travis-ci.org/lukewestby/elm-http-extra.svg?branch=master)](https://travis-ci.org/lukewestby/elm-http-extra)
+[![Build Status](https://travis-ci.org/lukewestby/elm-http-builder.svg?branch=master)](https://travis-ci.org/lukewestby/elm-http-builder)
 
 Chainable functions for building HTTP requests and composable functions for handling responses.
 
@@ -27,25 +27,32 @@ following for a 404 error:
 Not Found.
 ```
 
-We'll use `HttpExtra.jsonReader` and a `Json.Decode.Decoder` to parse the
-successful response body and `HttpExtra.stringReader` to accept a string
+We'll use `HttpBuilder.jsonReader` and a `Json.Decode.Decoder` to parse the
+successful response body and `HttpBuilder.stringReader` to accept a string
 body on error without trying to parse JSON.
 
 ```elm
 import Time
-import Http.Extra as HttpExtra exposing (..)
-import Json.Decode as Json
+import HttpBuilder exposing (..)
+import Json.Decode as Decode
+import Json.Encode as Encode
 
 
-itemsDecoder : Json.Decoder (List String)
+itemsDecoder : Decode.Decoder (List String)
 itemsDecoder =
-  Json.list Json.string
+  Decode.list Decode.string
 
 
-addItem : String -> Task (HttpExtra.Error String) (HttpExtra.Response (List String))
+itemEncoder : String -> Encode.Value
+itemEncoder item =
+  Encode.object
+    [ ("item", Encode.string item) ]
+
+
+addItem : String -> Task (HttpBuilder.Error String) (HttpBuilder.Response (List String))
 addItem item =
-  HttpExtra.post "http://example.com/api/items"
-    |> withStringBody ("{ \"item\": \"" ++ item ++ "\" }")
+  HttpBuilder.post "http://example.com/api/items"
+    |> withJsonBody (itemEncoder item)
     |> withHeader "Content-Type" "application/json"
     |> withTimeout (10 * Time.second)
     |> withCredentials

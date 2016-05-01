@@ -1,11 +1,4 @@
-module Http.Extra
-  ( RequestBuilder, url, get, post, put, patch, delete
-  , withHeader, withHeaders, withBody, withStringBody, withJsonBody, withMultipartBody, withMultipartStringBody, withUrlEncodedBody
-  , withTimeout, withStartHandler, withProgressHandler, withMimeType, withCredentials
-  , send
-  , BodyReader, stringReader, jsonReader, Error(..), Response
-  , toRequest, toSettings, Request, Settings
-  ) where
+module HttpBuilder exposing (RequestBuilder, url, get, post, put, patch, delete, withHeader, withHeaders, withBody, withStringBody, withJsonBody, withMultipartBody, withMultipartStringBody, withUrlEncodedBody, withTimeout, withStartHandler, withProgressHandler, withMimeType, withCredentials, send, BodyReader, stringReader, jsonReader, Error(..), Response, toRequest, toSettings, Request, Settings)
 
 {-| Extra helpers for more easily building Http requests that require greater
 configuration than what is provided by `elm-http` out of the box.
@@ -29,6 +22,8 @@ configuration than what is provided by `elm-http` out of the box.
 # Inspect the request
 @docs toRequest, toSettings, Request, Settings
 -}
+
+-- where
 
 import String
 import Task exposing (Task)
@@ -59,15 +54,15 @@ See `Http.url`.
     googleUrl =
       url "https://google.com" [("q", "elm")]
 -}
-url : String -> List (String, String) -> String
+url : String -> List ( String, String ) -> String
 url =
   Http.url
 
 
 {-| A type for chaining request configuration
 -}
-type RequestBuilder =
-  RequestBuilder Http.Request Http.Settings
+type RequestBuilder
+  = RequestBuilder Http.Request Http.Settings
 
 
 requestWithVerbAndUrl : String -> String -> RequestBuilder
@@ -147,7 +142,7 @@ delete =
 -}
 withHeader : String -> String -> RequestBuilder -> RequestBuilder
 withHeader key value =
-  mapRequest <| \request -> { request | headers = (key, value) :: request.headers }
+  mapRequest <| \request -> { request | headers = ( key, value ) :: request.headers }
 
 
 {-| Add many headers to a request
@@ -155,7 +150,7 @@ withHeader key value =
     get "https://example.com/api/items/1"
       |> withHeaders [("Content-Type", "application/json"), ("Accept", "application/json")]
 -}
-withHeaders : List (String, String) -> RequestBuilder -> RequestBuilder
+withHeaders : List ( String, String ) -> RequestBuilder -> RequestBuilder
 withHeaders headers =
   mapRequest <| \request -> { request | headers = headers ++ request.headers }
 
@@ -216,9 +211,9 @@ your type signatures.
     post "https://example.com/api/items/1"
       |> withMultipartStringBody [("user", JS.encode user)]
 -}
-withMultipartStringBody : List (String, String) -> RequestBuilder -> RequestBuilder
+withMultipartStringBody : List ( String, String ) -> RequestBuilder -> RequestBuilder
 withMultipartStringBody =
-  List.map (\(key, value) -> Http.stringData key value)
+  List.map (\( key, value ) -> Http.stringData key value)
     >> withMultipartBody
 
 
@@ -227,7 +222,7 @@ withMultipartStringBody =
     post "https://example.com/api/whatever"
       |> withUrlEncodedBody [("user", "Evan"), ("pwd", "secret")]
 -}
-withUrlEncodedBody : List (String, String) -> RequestBuilder -> RequestBuilder
+withUrlEncodedBody : List ( String, String ) -> RequestBuilder -> RequestBuilder
 withUrlEncodedBody =
   joinUrlEncoded >> withStringBody
 
@@ -326,6 +321,7 @@ stringReader value =
   case value of
     Text string ->
       Ok string
+
     _ ->
       Err "String reader does not support given body type."
 
@@ -339,6 +335,7 @@ jsonReader decoder value =
   case value of
     Text string ->
       JsonDecode.decodeString decoder string
+
     _ ->
       Err "JSON reader does not support given body type."
 
@@ -373,6 +370,7 @@ promoteRawError rawError =
   case rawError of
     RawTimeout ->
       Timeout
+
     RawNetworkError ->
       NetworkError
 
@@ -392,6 +390,7 @@ responseFromRaw reader response =
     Err message ->
       Task.fail (UnexpectedPayload message)
 
+
 handleResponse : BodyReader a -> BodyReader b -> Http.Response -> Task (Error b) (Response a)
 handleResponse successReader errorReader response =
   let
@@ -403,7 +402,6 @@ handleResponse successReader errorReader response =
     else
       responseFromRaw errorReader response
         |> (flip Task.andThen) (BadResponse >> Task.fail)
-
 
 
 {-| Extract the Http.Request component of the builder, for introspection and
@@ -424,13 +422,13 @@ toSettings (RequestBuilder request settings) =
 
 {-| Join the arguments of a list of string touples in an url encoded format
 -}
-joinUrlEncoded: List (String, String) -> String
+joinUrlEncoded : List ( String, String ) -> String
 joinUrlEncoded args =
   String.join "&" (List.map queryPair args)
 
 
-queryPair : (String,String) -> String
-queryPair (key,value) =
+queryPair : ( String, String ) -> String
+queryPair ( key, value ) =
   queryEscape key ++ "=" ++ queryEscape value
 
 

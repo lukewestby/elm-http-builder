@@ -1,5 +1,5 @@
 {
-    "version": "5.2.0",
+    "version": "1.0.0",
     "summary": "Extra functions for more easily building and handling Http requests",
     "repository": "https://github.com/lukewestby/elm-http-extra.git",
     "license": "MIT",
@@ -7,11 +7,11 @@
         "src"
     ],
     "exposed-modules": [
-        "Http.Extra"
+        "HttpBuilder"
     ],
     "dependencies": {
-        "elm-lang/core": "3.0.0 <= v < 4.0.0",
-        "evancz/elm-http": "3.0.0 <= v < 4.0.0"
+        "elm-lang/core": "4.0.0 <= v < 5.0.0",
+        "evancz/elm-http": "3.0.1 <= v < 4.0.0"
     },
-    "elm-version": "0.16.0 <= v < 0.17.0"
+    "elm-version": "0.17.0 <= v < 0.18.0"
 }
