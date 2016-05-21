@@ -440,7 +440,7 @@ send : BodyReader a -> BodyReader b -> RequestBuilder -> Task (Error b) (Respons
 send successReader errorReader (RequestBuilder request settings internals) =
     if internals.cacheBuster then
         Time.now
-            |> (flip Task.andThen) ((appendCacheBusterToUrl request) >> Task.succeed)
+            |> Task.map (appendCacheBusterToUrl request)
             |> (flip Task.andThen) (sendHelp successReader errorReader internals settings)
     else
         sendHelp successReader errorReader internals settings request
@@ -455,7 +455,7 @@ sendHelp successReader errorReader internals settings request =
 
 appendCacheBusterToUrl : Request -> Time -> Request
 appendCacheBusterToUrl request time =
-    { request | url = appendQuery request.url "cacheBuster" (toString time) }
+    { request | url = appendQuery request.url "_" (toString time) }
 
 
 promoteRawError : Http.RawError -> Error a
