@@ -1,3 +1,4 @@
 cd ./tests/unit;
 elm-package install -y
-elm-test ./TestRunner.elm;
+elm-make ./TestRunner.elm --output ./tests.js;
+node ./tests.js;

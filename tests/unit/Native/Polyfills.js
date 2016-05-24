@@ -1,7 +1,4 @@
-var Elm = Elm || {};
-Elm.Native = Elm.Native || {};
-Elm.Native.Polyfills = {};
-Elm.Native.Polyfills.make = function (elm) {
+var _user$project$Native_Polyfills = (function () {
   global.FormData = function () { this._data = []; };
   Object.defineProperty(global.FormData.prototype, 'append', {
     value: function () {
@@ -10,10 +7,7 @@ Elm.Native.Polyfills.make = function (elm) {
     enumerable: false,
   });
 
-  elm.Native = elm.Native || {};
-  elm.Native.Polyfills = {};
-  elm.Native.Polyfills.values = {
-    enable: true,
+  return {
+    enabled: true,
   };
-  return elm.Native.Polyfills.values;
-};
+}());
