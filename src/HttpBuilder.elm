@@ -168,7 +168,7 @@ post =
 
 {-| Start building a PUT request with a given URL
 
-    post "https://example.com/api/items/1"
+    put "https://example.com/api/items/1"
 -}
 put : String -> RequestBuilder
 put =
