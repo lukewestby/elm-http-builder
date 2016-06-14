@@ -6345,11 +6345,24 @@ function render(vNode, eventNode)
 			return render(vNode.node, eventNode);
 
 		case 'tagger':
+			var subNode = vNode.node;
+			var tagger = vNode.tagger;
+		
+			while (subNode.type === 'tagger')
+			{
+				typeof tagger !== 'object'
+					? tagger = [tagger, subNode.tagger]
+					: tagger.push(subNode.tagger);
+
+				subNode = subNode.node;
+			}
+            
 			var subEventRoot = {
-				tagger: vNode.tagger,
+				tagger: tagger,
 				parent: eventNode
 			};
-			var domNode = render(vNode.node, subEventRoot);
+			
+			var domNode = render(subNode, subEventRoot);
 			domNode.elm_event_node_ref = subEventRoot;
 			return domNode;
 
@@ -6444,6 +6457,7 @@ function applyEvents(domNode, eventNode, events)
 		if (typeof value === 'undefined')
 		{
 			domNode.removeEventListener(key, handler);
+			allHandlers[key] = undefined;
 		}
 		else if (typeof handler === 'undefined')
 		{
@@ -6759,10 +6773,7 @@ function diffFacts(a, b, category)
 				(category === STYLE_KEY)
 					? ''
 					:
-				(category === EVENT_KEY)
-					? null
-					:
-				(category === ATTR_KEY)
+				(category === EVENT_KEY || category === ATTR_KEY)
 					? undefined
 					:
 				{ namespace: a[aKey].namespace, value: undefined };
@@ -6877,7 +6888,14 @@ function addDomNodesHelp(domNode, vNode, patches, i, low, high, eventNode)
 	switch (vNode.type)
 	{
 		case 'tagger':
-			return addDomNodesHelp(domNode, vNode.node, patches, i, low + 1, high, domNode.elm_event_node_ref);
+			var subNode = vNode.node;
+            
+			while (subNode.type === "tagger")
+			{
+				subNode = subNode.node;
+			}
+            
+			return addDomNodesHelp(domNode, subNode, patches, i, low + 1, high, domNode.elm_event_node_ref);
 
 		case 'node':
 			var vChildren = vNode.children;
@@ -6989,10 +7007,9 @@ function redraw(domNode, vNode, eventNode)
 	var parentNode = domNode.parentNode;
 	var newNode = render(vNode, eventNode);
 
-	var ref = domNode.elm_event_node_ref
-	if (typeof ref !== 'undefined')
+	if (typeof newNode.elm_event_node_ref === 'undefined')
 	{
-		newNode.elm_event_node_ref = ref;
+		newNode.elm_event_node_ref = domNode.elm_event_node_ref;
 	}
 
 	if (parentNode && newNode !== domNode)
@@ -8220,10 +8237,10 @@ var _user$project$HttpBuilder$stringReader = function (value) {
 	}
 };
 var _user$project$HttpBuilder$url = _evancz$elm_http$Http$url;
-var _user$project$HttpBuilder$defaultInternals = {cacheBuster: false, fileZeroStatusAllowed: false};
+var _user$project$HttpBuilder$defaultInternals = {cacheBuster: false, zeroStatusAllowed: false};
 var _user$project$HttpBuilder$Internals = F2(
 	function (a, b) {
-		return {cacheBuster: a, fileZeroStatusAllowed: b};
+		return {cacheBuster: a, zeroStatusAllowed: b};
 	});
 var _user$project$HttpBuilder$Response = F5(
 	function (a, b, c, d, e) {
@@ -8387,11 +8404,11 @@ var _user$project$HttpBuilder$withCacheBuster = _user$project$HttpBuilder$mapInt
 			internals,
 			{cacheBuster: true});
 	});
-var _user$project$HttpBuilder$withFileZeroStatusAllowed = _user$project$HttpBuilder$mapInternals(
+var _user$project$HttpBuilder$withZeroStatusAllowed = _user$project$HttpBuilder$mapInternals(
 	function (internals) {
 		return _elm_lang$core$Native_Utils.update(
 			internals,
-			{fileZeroStatusAllowed: true});
+			{zeroStatusAllowed: true});
 	});
 var _user$project$HttpBuilder$BadResponse = function (a) {
 	return {ctor: 'BadResponse', _0: a};
@@ -8422,7 +8439,7 @@ var _user$project$HttpBuilder$responseFromRaw = F2(
 	});
 var _user$project$HttpBuilder$handleResponse = F4(
 	function (successReader, errorReader, internals, response) {
-		var isSuccessful = ((_elm_lang$core$Native_Utils.cmp(response.status, 200) > -1) && (_elm_lang$core$Native_Utils.cmp(response.status, 300) < 0)) || (_elm_lang$core$Native_Utils.eq(response.status, 0) && (internals.fileZeroStatusAllowed && A2(_elm_lang$core$String$startsWith, 'file://', response.url)));
+		var isSuccessful = ((_elm_lang$core$Native_Utils.cmp(response.status, 200) > -1) && (_elm_lang$core$Native_Utils.cmp(response.status, 300) < 0)) || (_elm_lang$core$Native_Utils.eq(response.status, 0) && internals.zeroStatusAllowed);
 		return isSuccessful ? A2(_user$project$HttpBuilder$responseFromRaw, successReader, response) : A3(
 			_elm_lang$core$Basics$flip,
 			_elm_lang$core$Task$andThen,
