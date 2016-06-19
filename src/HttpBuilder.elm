@@ -21,7 +21,7 @@ module HttpBuilder
         , withMimeType
         , withCredentials
         , withCacheBuster
-        , withFileZeroStatusAllowed
+        , withZeroStatusAllowed
         , send
         , BodyReader
         , stringReader
@@ -48,7 +48,7 @@ configuration than what is provided by `elm-http` out of the box.
 @docs withTimeout, withStartHandler, withProgressHandler, withMimeType, withCredentials
 
 # Custom configurations
-@docs withCacheBuster, withFileZeroStatusAllowed
+@docs withCacheBuster, withZeroStatusAllowed
 
 # Send the request
 @docs send
@@ -87,14 +87,14 @@ type alias Settings =
 
 type alias Internals =
     { cacheBuster : Bool
-    , fileZeroStatusAllowed : Bool
+    , zeroStatusAllowed : Bool
     }
 
 
 defaultInternals : Internals
 defaultInternals =
     { cacheBuster = False
-    , fileZeroStatusAllowed = False
+    , zeroStatusAllowed = False
     }
 
 
@@ -352,9 +352,9 @@ of 0 to pass through successfully. This is a common issue when dealing with
 file:// urls in environments like cordova, and using this function will allow
 you to work around the problem on an opt-in basis.
 -}
-withFileZeroStatusAllowed : RequestBuilder -> RequestBuilder
-withFileZeroStatusAllowed =
-    mapInternals <| \internals -> { internals | fileZeroStatusAllowed = True }
+withZeroStatusAllowed : RequestBuilder -> RequestBuilder
+withZeroStatusAllowed =
+    mapInternals <| \internals -> { internals | zeroStatusAllowed = True }
 
 
 {-| Represents a response from the server, including both a decoded JSON payload
@@ -488,7 +488,7 @@ handleResponse : BodyReader a -> BodyReader b -> Internals -> Http.Response -> T
 handleResponse successReader errorReader internals response =
     let
         isSuccessful =
-            (response.status >= 200 && response.status < 300) || (response.status == 0 && internals.fileZeroStatusAllowed && (String.startsWith "file://" response.url))
+            (response.status >= 200 && response.status < 300) || (response.status == 0 && internals.zeroStatusAllowed)
     in
         if isSuccessful then
             responseFromRaw successReader response
