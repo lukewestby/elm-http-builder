@@ -32,6 +32,7 @@ successful response body and `HttpBuilder.stringReader` to accept a string
 body on error without trying to parse JSON.
 
 ```elm
+import Task exposing (Task)
 import Time
 import HttpBuilder exposing (..)
 import Json.Decode as Decode
