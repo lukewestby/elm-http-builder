@@ -7,6 +7,7 @@ module HttpBuilder
         , put
         , patch
         , delete
+        , options
         , withHeader
         , withHeaders
         , withBody
@@ -191,6 +192,15 @@ patch =
 delete : String -> RequestBuilder
 delete =
     requestWithVerbAndUrl "DELETE"
+
+
+{-| Start building a OPTIONS request with a given URL
+
+    options "https://example.com/api/items/1"
+-}
+options : String -> RequestBuilder
+options =
+    requestWithVerbAndUrl "OPTIONS"
 
 
 {-| Add a single header to a request

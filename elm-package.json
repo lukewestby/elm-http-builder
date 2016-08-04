@@ -1,5 +1,5 @@
 {
-    "version": "2.0.0",
+    "version": "2.0.1",
     "summary": "Extra functions for more easily building and handling Http requests",
     "repository": "https://github.com/lukewestby/elm-http-builder.git",
     "license": "MIT",
