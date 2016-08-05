@@ -8,6 +8,8 @@ module HttpBuilder
         , patch
         , delete
         , options
+        , trace
+        , head
         , withHeader
         , withHeaders
         , withBody
@@ -201,6 +203,24 @@ delete =
 options : String -> RequestBuilder
 options =
     requestWithVerbAndUrl "OPTIONS"
+
+
+{-| Start building a TRACE request with a given URL
+
+    trace "https://example.com/api/items/1"
+-}
+trace : String -> RequestBuilder
+trace =
+    requestWithVerbAndUrl "TRACE"
+
+
+{-| Start building a HEAD request with a given URL
+
+    head "https://example.com/api/items/1"
+-}
+head : String -> RequestBuilder
+head =
+    requestWithVerbAndUrl "HEAD"
 
 
 {-| Add a single header to a request
