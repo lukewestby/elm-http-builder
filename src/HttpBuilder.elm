@@ -42,7 +42,7 @@ configuration than what is provided by `elm-http` out of the box.
 
 
 # Start a request
-@docs RequestBuilder, url, get, post, put, patch, delete
+@docs RequestBuilder, url, get, post, put, patch, delete, options, trace, head
 
 # Configure request properties
 @docs withHeader, withHeaders, withBody, withStringBody, withJsonBody, withMultipartBody, withMultipartStringBody, withUrlEncodedBody
