@@ -1,6 +1,5 @@
 module Tests exposing (..)
 
-import Task exposing (Task)
 import Time
 import ElmTest exposing (..)
 import Http
@@ -13,16 +12,6 @@ import Native.Polyfills
 polyfillsEnabled : Bool
 polyfillsEnabled =
     Native.Polyfills.enabled
-
-
-testStartTask : Task () ()
-testStartTask =
-    Task.succeed ()
-
-
-testProgressHandler : Maybe { loaded : Int, total : Int } -> Task () ()
-testProgressHandler =
-    always (Task.succeed ())
 
 
 toTuple : RequestBuilder -> ( Request, Settings )
@@ -54,8 +43,6 @@ all =
                 |> withHeaders [ ( "OtherTest", "Header" ) ]
                 |> withStringBody """{ "test": "body" }"""
                 |> withTimeout (10 * Time.second)
-                |> withStartHandler testStartTask
-                |> withProgressHandler testProgressHandler
                 |> withMimeType "test/mime-type"
                 |> withCredentials
                 |> toTuple
@@ -66,8 +53,8 @@ all =
                       , body = Http.string """{ "test": "body" }"""
                       }
                     , { timeout = 10 * Time.second
-                      , onStart = Just testStartTask
-                      , onProgress = Just testProgressHandler
+                      , onStart = Nothing
+                      , onProgress = Nothing
                       , desiredResponseType = Just "test/mime-type"
                       , withCredentials = True
                       }

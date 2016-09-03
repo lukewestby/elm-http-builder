@@ -19,8 +19,6 @@ module HttpBuilder
         , withMultipartStringBody
         , withUrlEncodedBody
         , withTimeout
-        , withStartHandler
-        , withProgressHandler
         , withMimeType
         , withCredentials
         , withCacheBuster
@@ -29,6 +27,7 @@ module HttpBuilder
         , BodyReader
         , stringReader
         , jsonReader
+        , unitReader
         , Error(..)
         , Response
         , toRequest
@@ -50,13 +49,13 @@ configuration than what is provided by `elm-http` out of the box.
 @docs withHeader, withHeaders, withBody, withStringBody, withJsonBody, withMultipartBody, withMultipartStringBody, withUrlEncodedBody
 
 # Configure settings
-@docs withTimeout, withStartHandler, withProgressHandler, withMimeType, withCredentials
+@docs withTimeout, withMimeType, withCredentials
 
 # Custom configurations
 @docs withCacheBuster, withZeroStatusAllowed
 
 # Parse the response
-@docs BodyReader, stringReader, jsonReader, Error, Response
+@docs BodyReader, stringReader, jsonReader, unitReader, Error, Response
 
 # Inspect the request
 @docs toRequest, toSettings, Request, Settings
@@ -324,26 +323,6 @@ withTimeout timeout =
     mapSettings <| \settings -> { settings | timeout = timeout }
 
 
-{-| Set the `onStart` setting on the request
-
-    get "https://example.com/api/items/1"
-        |> withStartHandler (onStartTask)
--}
-withStartHandler : Task () () -> RequestBuilder -> RequestBuilder
-withStartHandler task =
-    mapSettings <| \settings -> { settings | onStart = Just task }
-
-
-{-| Set the `onProgress` setting on the request
-
-    get "https://example.com/api/items/1"
-        |> withProgressHandler (onProgressHandler)
--}
-withProgressHandler : (Maybe { loaded : Int, total : Int } -> Task () ()) -> RequestBuilder -> RequestBuilder
-withProgressHandler progressHandler =
-    mapSettings <| \settings -> { settings | onProgress = Just progressHandler }
-
-
 {-| Set the desired type of the response for the request, works via
 [`XMLHttpRequest#overrideMimeType()`](https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest#overrideMimeType())
 
@@ -445,6 +424,15 @@ jsonReader decoder value =
 
         _ ->
             Err "JSON reader does not support given body type."
+
+
+{-| Totally discards the content of a raw response body and reads nothing,
+returning `()` as the data value. Great for discarding error response bodies if
+they just look like `"Not Found"` or whatever and aren't really useful.
+-}
+unitReader : BodyReader ()
+unitReader =
+    always <| Ok ()
 
 
 {-| Once you're finished building up a request, send it with readers for the
