@@ -40,6 +40,8 @@ module HttpBuilder
 {-| Extra helpers for more easily building Http requests that require greater
 configuration than what is provided by `elm-http` out of the box.
 
+# Send a request
+@docs send
 
 # Start a request
 @docs RequestBuilder, url, get, post, put, patch, delete, options, trace, head
@@ -52,9 +54,6 @@ configuration than what is provided by `elm-http` out of the box.
 
 # Custom configurations
 @docs withCacheBuster, withZeroStatusAllowed
-
-# Send the request
-@docs send
 
 # Parse the response
 @docs BodyReader, stringReader, jsonReader, Error, Response
