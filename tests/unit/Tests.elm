@@ -1,7 +1,8 @@
 module Tests exposing (..)
 
+import Expect
 import Time
-import ElmTest exposing (..)
+import Test exposing (..)
 import Http
 import HttpBuilder exposing (..)
 import Json.Decode as Decode
@@ -14,9 +15,9 @@ polyfillsEnabled =
     Native.Polyfills.enabled
 
 
-toTuple : RequestBuilder -> ( Request, Settings )
+toTuple : RequestBuilder -> ( Http.Request (Response String), Settings )
 toTuple builder =
-    ( toRequest builder, toSettings builder )
+    ( toRequest builder stringReader, toSettings builder )
 
 
 testDecoder : Decode.Decoder String
@@ -24,81 +25,86 @@ testDecoder =
     Decode.at [ "hello" ] Decode.string
 
 
-initialRequest : Request
+initialRequest : Request String
 initialRequest =
-    { verb = "GET"
+    { method = "GET"
     , url = "http://example.com"
     , headers = []
-    , body = Http.empty
+    , body = Http.emptyBody
+    , expect = Http.expectString
     }
 
 
 all : Test
 all =
-    suite "All tests"
-        [ test "polyfills are set up" <| assertEqual polyfillsEnabled True
-        , suite "Request Building"
-            [ get "http://example.com"
-                |> withHeader "Test" "Header"
-                |> withHeaders [ ( "OtherTest", "Header" ) ]
-                |> withStringBody """{ "test": "body" }"""
-                |> withTimeout (10 * Time.second)
-                |> withMimeType "test/mime-type"
-                |> withCredentials
-                |> toTuple
-                |> assertEqual
-                    ( { verb = "GET"
-                      , url = "http://example.com"
-                      , headers = [ ( "OtherTest", "Header" ), ( "Test", "Header" ) ]
-                      , body = Http.string """{ "test": "body" }"""
-                      }
-                    , { timeout = 10 * Time.second
-                      , onStart = Nothing
-                      , onProgress = Nothing
-                      , desiredResponseType = Just "test/mime-type"
-                      , withCredentials = True
-                      }
-                    )
-                |> test "should build request and settings with expected params"
+    describe "All tests"
+        [ test "polyfills are set up" <| \() -> Expect.equal polyfillsEnabled True
+        , describe "Request Building"
+            [ test "should build request and settings with expected params" <|
+                \() ->
+                    get "http://example.com"
+                        |> withHeader "Test" "Header"
+                        |> withHeaders [ ( "OtherTest", "Header" ) ]
+                        |> withStringBody "" """{ "test": "body" }"""
+                        |> withTimeout (10 * Time.second)
+                        |> withCredentials
+                        |> toRequestRecord stringReader
+                        |> (\r -> { r | expect = Http.expectString })
+                        |> Expect.equal
+                            { method = "GET"
+                            , url = "http://example.com"
+                            , headers = List.map (uncurry Http.header) [ ( "OtherTest", "Header" ), ( "Test", "Header" ) ]
+                            , body = Http.stringBody "" """{ "test": "body" }"""
+                            , expect = Http.expectString
+                            , timeout = Just (10 * Time.second)
+                            , withCredentials = True
+                            }
             ]
-        , suite "with*Body functions"
-            [ get "http://example.com"
-                |> withStringBody "hello"
-                |> toRequest
-                |> .body
-                |> assertEqual (Http.string "hello")
-                |> test "withStringBody applies string directly"
-            , get "http://example.com"
-                |> withJsonBody (Encode.string "hello")
-                |> toRequest
-                |> .body
-                |> assertEqual (Http.string "\"hello\"")
-                |> test "withJsonBody applies a Json.Value as a string"
-            , get "http://example.com"
-                |> withUrlEncodedBody [ ( "hello", "world" ), ( "test", "stuff" ) ]
-                |> toRequest
-                |> .body
-                |> assertEqual (Http.string "hello=world&test=stuff")
-                |> test "withUrlEncodedBody encodes pairs as url components"
-            , get "http://example.com"
-                |> withMultipartBody [ Http.stringData "hello" "world" ]
-                |> toRequest
-                |> .body
-                |> assertEqual (Http.multipart [ Http.stringData "hello" "world" ])
-                |> test "withMultipartBody passes through to Http.multipart"
-            , get "http://example.com"
-                |> withMultipartStringBody [ ( "hello", "world" ) ]
-                |> toRequest
-                |> .body
-                |> assertEqual (Http.multipart [ Http.stringData "hello" "world" ])
-                |> test "withMultipartStringBody first converts string pairs to string data and then passes to multipart"
+        , describe "with*Body functions"
+            [ test "withStringBody applies string directly" <|
+                \() ->
+                    get "http://example.com"
+                        |> withStringBody "" "hello"
+                        |> toRequestRecord stringReader
+                        |> .body
+                        |> Expect.equal (Http.stringBody "" "hello")
+            , test "withJsonBody applies a Json.Value as a string" <|
+                \() ->
+                    get "http://example.com"
+                        |> withJsonBody (Encode.string "hello")
+                        |> toRequestRecord stringReader
+                        |> .body
+                        |> Expect.equal (Http.stringBody "application/json" "\"hello\"")
+            , test "withUrlEncodedBody encodes pairs as url components" <|
+                \() ->
+                    get "http://example.com"
+                        |> withUrlEncodedBody [ ( "hello", "world" ), ( "test", "stuff" ) ]
+                        |> toRequestRecord stringReader
+                        |> .body
+                        |> Expect.equal (Http.stringBody "application/x-www-form-urlencoded" "hello=world&test=stuff")
+            , test "withMultipartBody passes through to Http.multipart" <|
+                \() ->
+                    get "http://example.com"
+                        |> withMultipartBody [ Http.stringPart "hello" "world" ]
+                        |> toRequestRecord stringReader
+                        |> .body
+                        |> Expect.equal (Http.multipartBody [ Http.stringPart "hello" "world" ])
+            , test "withMultipartStringBody first converts string pairs to string data and then passes to multipart" <|
+                \() ->
+                    get "http://example.com"
+                        |> withMultipartStringBody [ ( "hello", "world" ) ]
+                        |> toRequestRecord stringReader
+                        |> .body
+                        |> Expect.equal (Http.multipartBody [ Http.stringPart "hello" "world" ])
             ]
-        , suite "BodyReaders"
-            [ stringReader (Http.Text "test value")
-                |> assertEqual (Ok "test value")
-                |> test "should extract a text value as a string"
-            , jsonReader testDecoder (Http.Text """{ "hello": "world" }""")
-                |> assertEqual (Ok "world")
-                |> test "should extract a json value with a decoder"
+        , describe "BodyReaders"
+            [ test "should extract a text value as a string" <|
+                \() ->
+                    stringReader ("test value")
+                        |> Expect.equal (Ok "test value")
+            , test "should extract a json value with a decoder" <|
+                \() ->
+                    jsonReader testDecoder ("""{ "hello": "world" }""")
+                        |> Expect.equal (Ok "world")
             ]
         ]
