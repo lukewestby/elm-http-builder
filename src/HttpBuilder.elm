@@ -19,7 +19,6 @@ module HttpBuilder
         , withMultipartStringBody
         , withUrlEncodedBody
         , withTimeout
-        , withMimeType
         , withCredentials
         , withCacheBuster
         , withZeroStatusAllowed
@@ -31,6 +30,7 @@ module HttpBuilder
         , Error(..)
         , Response
         , toRequest
+        , toRequestRecord
         , toSettings
         , Request
         , Settings
@@ -49,7 +49,7 @@ configuration than what is provided by `elm-http` out of the box.
 @docs withHeader, withHeaders, withBody, withStringBody, withJsonBody, withMultipartBody, withMultipartStringBody, withUrlEncodedBody
 
 # Configure settings
-@docs withTimeout, withMimeType, withCredentials
+@docs withTimeout, withCredentials
 
 # Custom configurations
 @docs withCacheBuster, withZeroStatusAllowed
@@ -58,7 +58,7 @@ configuration than what is provided by `elm-http` out of the box.
 @docs BodyReader, stringReader, jsonReader, unitReader, Error, Response
 
 # Inspect the request
-@docs toRequest, toSettings, Request, Settings
+@docs toRequest, toRequestRecord, toSettings, Request, Settings
 -}
 
 -- where
@@ -71,19 +71,35 @@ import Json.Decode as JsonDecode
 import Json.Encode as JsonEncode
 import Dict exposing (Dict)
 import Result exposing (Result(Ok, Err))
-import Http exposing (Value(Text), RawError(..))
+import Http exposing (Error(..))
 
 
-{-| Re-export `Http.Request`
+{-| A `Request` represents an HTTP request to some url.
 -}
-type alias Request =
-    Http.Request
+type alias Request a =
+    { method : String
+    , headers : List Http.Header
+    , url : String
+    , body : Http.Body
+    , expect : Http.Expect a
+    }
 
 
-{-| Re-export `Http.Settings`
+{-| Configurable settings for Requests.
 -}
 type alias Settings =
-    Http.Settings
+    { timeout : Time
+    , withCredentials : Bool
+    }
+
+
+{-| By default, don't use a timeout or credentials.
+-}
+defaultSettings : Settings
+defaultSettings =
+    { timeout = 0
+    , withCredentials = False
+    }
 
 
 type alias Internals =
@@ -106,36 +122,40 @@ See `Http.url`.
         url "https://google.com" [("q", "elm")]
 -}
 url : String -> List ( String, String ) -> String
-url =
-    Http.url
+url base params =
+    if List.isEmpty params then
+        base
+    else
+        base ++ "?" ++ joinUrlEncoded params
 
 
 {-| A type for chaining request configuration
 -}
 type RequestBuilder
-    = RequestBuilder Http.Request Http.Settings Internals
+    = RequestBuilder (Request String) Settings Internals
 
 
 requestWithVerbAndUrl : String -> String -> RequestBuilder
-requestWithVerbAndUrl verb url =
+requestWithVerbAndUrl method url =
     RequestBuilder
-        { verb = verb
+        { method = method
         , url = url
         , headers = []
-        , body = Http.empty
+        , body = Http.emptyBody
+        , expect = Http.expectString
         }
-        Http.defaultSettings
+        defaultSettings
         defaultInternals
 
 
-mapRequest : (Http.Request -> Http.Request) -> RequestBuilder -> RequestBuilder
+mapRequest : (Request String -> Request String) -> RequestBuilder -> RequestBuilder
 mapRequest updater (RequestBuilder request settings internals) =
     RequestBuilder (updater request)
         (settings)
         (internals)
 
 
-mapSettings : (Http.Settings -> Http.Settings) -> RequestBuilder -> RequestBuilder
+mapSettings : (Settings -> Settings) -> RequestBuilder -> RequestBuilder
 mapSettings updater (RequestBuilder request settings internals) =
     RequestBuilder (request)
         (updater settings)
@@ -228,7 +248,7 @@ head =
 -}
 withHeader : String -> String -> RequestBuilder -> RequestBuilder
 withHeader key value =
-    mapRequest <| \request -> { request | headers = ( key, value ) :: request.headers }
+    mapRequest <| \request -> { request | headers = Http.header key value :: request.headers }
 
 
 {-| Add many headers to a request
@@ -238,7 +258,7 @@ withHeader key value =
 -}
 withHeaders : List ( String, String ) -> RequestBuilder -> RequestBuilder
 withHeaders headers =
-    mapRequest <| \request -> { request | headers = headers ++ request.headers }
+    mapRequest <| \request -> { request | headers = List.map (uncurry Http.header) headers ++ request.headers }
 
 
 {-| Add a body to a request for requests that allow bodies.
@@ -255,12 +275,11 @@ withBody body =
 {-| Convenience function for adding a string body to a request
 
     post "https://example.com/api/items/1"
-        |> withHeader "Content-Type" "application/json"
-        |> withStringBody """{ "sortBy": "coolness", "take": 10 }"""
+        |> withStringBody "application/json" """{ "sortBy": "coolness", "take": 10 }"""
 -}
-withStringBody : String -> RequestBuilder -> RequestBuilder
-withStringBody =
-    Http.string >> withBody
+withStringBody : String -> String -> RequestBuilder -> RequestBuilder
+withStringBody contentType data =
+    withBody <| Http.stringBody contentType data
 
 
 {-| Convenience function for adding a JSON body to a request
@@ -276,7 +295,7 @@ withStringBody =
 -}
 withJsonBody : JsonEncode.Value -> RequestBuilder -> RequestBuilder
 withJsonBody =
-    (JsonEncode.encode 0) >> withStringBody
+    (JsonEncode.encode 0) >> withStringBody "application/json"
 
 
 {-| Convenience function for adding a multiplart body to a request
@@ -284,9 +303,9 @@ withJsonBody =
     post "https://example.com/api/items/1"
         |> withMultipartBody [Http.stringData "user" (JS.encode user)]
 -}
-withMultipartBody : List Http.Data -> RequestBuilder -> RequestBuilder
+withMultipartBody : List Http.Part -> RequestBuilder -> RequestBuilder
 withMultipartBody =
-    Http.multipart >> withBody
+    Http.multipartBody >> withBody
 
 
 {-| Convience function for adding multipart bodies composed of String, String
@@ -299,7 +318,7 @@ your type signatures.
 -}
 withMultipartStringBody : List ( String, String ) -> RequestBuilder -> RequestBuilder
 withMultipartStringBody =
-    List.map (\( key, value ) -> Http.stringData key value)
+    List.map (\( key, value ) -> Http.stringPart key value)
         >> withMultipartBody
 
 
@@ -310,7 +329,7 @@ withMultipartStringBody =
 -}
 withUrlEncodedBody : List ( String, String ) -> RequestBuilder -> RequestBuilder
 withUrlEncodedBody =
-    joinUrlEncoded >> withStringBody
+    joinUrlEncoded >> withStringBody "application/x-www-form-urlencoded"
 
 
 {-| Set the `timeout` setting on the request
@@ -321,17 +340,6 @@ withUrlEncodedBody =
 withTimeout : Time -> RequestBuilder -> RequestBuilder
 withTimeout timeout =
     mapSettings <| \settings -> { settings | timeout = timeout }
-
-
-{-| Set the desired type of the response for the request, works via
-[`XMLHttpRequest#overrideMimeType()`](https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest#overrideMimeType())
-
-    get "https://example.com/api/items/1"
-        |> withMimeType (onProgressHandler)
--}
-withMimeType : String -> RequestBuilder -> RequestBuilder
-withMimeType mimeType =
-    mapSettings <| \settings -> { settings | desiredResponseType = Just mimeType }
 
 
 {-| Set the `withCredentials` flag on the request to True. Works via
@@ -377,6 +385,30 @@ type alias Response a =
     }
 
 
+{-| Decode a Response from an Http.Response
+-}
+decodeResponse : BodyReader a -> Http.Response String -> Result String (Response a)
+decodeResponse reader strResponse =
+    let
+        replaceBody response data =
+            { response | data = data }
+    in
+        reader strResponse.body
+            |> Result.map (replaceBody <| fromResponse strResponse)
+
+
+{-| Convert a `Http.Response String` into a `Response`, replacing the data.
+-}
+fromResponse : Http.Response a -> Response a
+fromResponse response =
+    { data = response.body
+    , status = response.status.code
+    , statusText = response.status.message
+    , headers = response.headers
+    , url = response.url
+    }
+
+
 {-| Indicates that _some_ kind of failure occured along the path of making and
 receiving the request. This includes a timeout or network issue, a failure to
 parse the response body, or a status code outside the 200 range. In the case
@@ -384,10 +416,76 @@ that the error is due to a non-2xx response code, the full response is provided
 and the data decoded as JSON using the decoder for errors passed to `send`.
 -}
 type Error a
-    = UnexpectedPayload String
-    | NetworkError
+    = BadUrl String
     | Timeout
-    | BadResponse (Response a)
+    | NetworkError
+    | BadStatus (Response a)
+    | BadPayload String (Response a)
+    | DecodingFailure String
+
+
+{-| Parse the `Http.Error` into an `Error a`, optionally allowing for a status
+code of `0`.
+-}
+parseError : BodyReader a -> BodyReader b -> Internals -> Error String -> Task (Error b) (Response a)
+parseError successReader errorReader internals error =
+    let
+        applyOrError : Response String -> (Response b -> Error b) -> Error b
+        applyOrError response errorFunc =
+            case errorReader response.data of
+                Ok decoded ->
+                    errorFunc { response | data = decoded }
+
+                Err msg ->
+                    DecodingFailure msg
+    in
+        case error of
+            BadStatus resp ->
+                if internals.zeroStatusAllowed && resp.status == 0 then
+                    case successReader resp.data of
+                        Err msg ->
+                            Task.fail (DecodingFailure msg)
+
+                        Ok data ->
+                            Task.succeed { resp | data = data }
+                else
+                    Task.fail <| applyOrError resp BadStatus
+
+            BadPayload msg resp ->
+                Task.fail <| applyOrError resp <| BadPayload msg
+
+            BadUrl url ->
+                Task.fail <| BadUrl url
+
+            Timeout ->
+                Task.fail <| Timeout
+
+            NetworkError ->
+                Task.fail <| NetworkError
+
+            DecodingFailure msg ->
+                Task.fail <| DecodingFailure msg
+
+
+{-| Convert an `Http.Error` into a String `Error`.
+-}
+promoteRawError : Http.Error -> Error String
+promoteRawError rawError =
+    case rawError of
+        Http.BadUrl url ->
+            BadUrl url
+
+        Http.Timeout ->
+            Timeout
+
+        Http.NetworkError ->
+            NetworkError
+
+        Http.BadStatus resp ->
+            BadStatus <| fromResponse resp
+
+        Http.BadPayload message resp ->
+            BadPayload message <| fromResponse resp
 
 
 {-| A function for transforming raw response bodies into a useful value. Plain
@@ -396,7 +494,7 @@ used as a basis for more custom readers. When future Http value types become
 supported matching readers will be added to extract them.
 -}
 type alias BodyReader a =
-    Http.Value -> Result String a
+    String -> Result String a
 
 
 {-| Attempts to read a raw response body as a plain text string, failing if the
@@ -404,12 +502,7 @@ body is not readable as a string.
 -}
 stringReader : BodyReader String
 stringReader value =
-    case value of
-        Text string ->
-            Ok string
-
-        _ ->
-            Err "String reader does not support given body type."
+    Ok value
 
 
 {-| Attempts to decode the raw response body with the given
@@ -417,13 +510,8 @@ stringReader value =
 string.
 -}
 jsonReader : JsonDecode.Decoder a -> BodyReader a
-jsonReader decoder value =
-    case value of
-        Text string ->
-            JsonDecode.decodeString decoder string
-
-        _ ->
-            Err "JSON reader does not support given body type."
+jsonReader =
+    JsonDecode.decodeString
 
 
 {-| Totally discards the content of a raw response body and reads nothing,
@@ -458,68 +546,60 @@ send successReader errorReader (RequestBuilder request settings internals) =
     if internals.cacheBuster then
         Time.now
             |> Task.map (appendCacheBusterToUrl request)
-            |> (flip Task.andThen) (sendHelp successReader errorReader internals settings)
+            |> Task.andThen (sendHelp successReader errorReader internals settings)
     else
         sendHelp successReader errorReader internals settings request
 
 
-sendHelp : BodyReader a -> BodyReader b -> Internals -> Settings -> Request -> Task (Error b) (Response a)
+sendHelp :
+    BodyReader a
+    -> BodyReader b
+    -> Internals
+    -> Settings
+    -> Request String
+    -> Task (Error b) (Response a)
 sendHelp successReader errorReader internals settings request =
-    Http.send settings request
+    toRequest (RequestBuilder request settings internals) successReader
+        |> Http.toTask
         |> Task.mapError promoteRawError
-        |> (flip Task.andThen) (handleResponse successReader errorReader internals)
+        |> Task.onError (parseError successReader errorReader internals)
 
 
-appendCacheBusterToUrl : Request -> Time -> Request
+appendCacheBusterToUrl : Request String -> Time -> Request String
 appendCacheBusterToUrl request time =
     { request | url = appendQuery request.url "_" (toString time) }
-
-
-promoteRawError : Http.RawError -> Error a
-promoteRawError rawError =
-    case rawError of
-        RawTimeout ->
-            Timeout
-
-        RawNetworkError ->
-            NetworkError
-
-
-responseFromRaw : BodyReader a -> Http.Response -> Task (Error b) (Response a)
-responseFromRaw reader response =
-    case reader response.value of
-        Ok data ->
-            Task.succeed
-                { data = data
-                , status = response.status
-                , statusText = response.statusText
-                , headers = response.headers
-                , url = response.url
-                }
-
-        Err message ->
-            Task.fail (UnexpectedPayload message)
-
-
-handleResponse : BodyReader a -> BodyReader b -> Internals -> Http.Response -> Task (Error b) (Response a)
-handleResponse successReader errorReader internals response =
-    let
-        isSuccessful =
-            (response.status >= 200 && response.status < 300) || (response.status == 0 && internals.zeroStatusAllowed)
-    in
-        if isSuccessful then
-            responseFromRaw successReader response
-        else
-            responseFromRaw errorReader response
-                |> (flip Task.andThen) (BadResponse >> Task.fail)
 
 
 {-| Extract the Http.Request component of the builder, for introspection and
 testing
 -}
-toRequest : RequestBuilder -> Request
-toRequest (RequestBuilder request settings internals) =
-    request
+toRequest : RequestBuilder -> BodyReader a -> Http.Request (Response a)
+toRequest builder reader =
+    toRequestRecord reader builder |> Http.request
+
+
+{-| Extract a record used to create an Http.Request from the HttpBuilder.
+-}
+toRequestRecord :
+    BodyReader a
+    -> RequestBuilder
+    -> { body : Http.Body
+       , expect : Http.Expect (Response a)
+       , headers : List Http.Header
+       , method : String
+       , timeout : Maybe Time
+       , url : String
+       , withCredentials : Bool
+       }
+toRequestRecord reader (RequestBuilder request settings internals) =
+    { method = request.method
+    , headers = request.headers
+    , url = request.url
+    , body = request.body
+    , expect = Http.expectStringResponse (decodeResponse reader)
+    , timeout = Just settings.timeout
+    , withCredentials = settings.withCredentials
+    }
 
 
 {-| Extract the Http.Settings component of the builder, for introspection and
@@ -542,7 +622,7 @@ queryPair ( key, value ) =
 
 queryEscape : String -> String
 queryEscape =
-    Http.uriEncode >> replace "%20" "+"
+    Http.encodeUri >> replace "%20" "+"
 
 
 replace : String -> String -> String -> String
