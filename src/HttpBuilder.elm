@@ -30,7 +30,7 @@ configuration than what is provided by `elm-http` out of the box.
 @docs RequestBuilder, get, post, put, patch, delete, options, trace, head
 
 # Configure request properties
-@docs withHeader, withHeaders, withStringBody, withJsonBody, withMultipartStringBody, withUrlEncodedBody, withTimeout, withCredentials, withQueryParams
+@docs withHeader, withHeaders, withStringBody, withJsonBody, withMultipartStringBody, withUrlEncodedBody, withTimeout, withCredentials, withQueryParams, withExpect
 
 # Make the request
 @docs toRequest, send
@@ -175,8 +175,8 @@ withHeader key value =
 -}
 withHeaders : List ( String, String ) -> RequestBuilder a -> RequestBuilder a
 withHeaders headerPairs =
-    map
-        <| \details ->
+    map <|
+        \details ->
             { details
                 | headers = (List.map (uncurry Http.header) headerPairs) ++ details.headers
             }
@@ -222,8 +222,8 @@ your type signatures.
 -}
 withMultipartStringBody : List ( String, String ) -> RequestBuilder a -> RequestBuilder a
 withMultipartStringBody partPairs =
-    map
-        <| \details ->
+    map <|
+        \details ->
             { details
                 | body = Http.multipartBody <| List.map (uncurry Http.stringPart) partPairs
             }
