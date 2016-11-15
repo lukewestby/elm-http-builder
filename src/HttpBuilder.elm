@@ -18,6 +18,7 @@ module HttpBuilder
         , withTimeout
         , withCredentials
         , withQueryParams
+        , withExpect
         , toRequest
         , send
         )
