@@ -21,6 +21,7 @@ module HttpBuilder
         , withExpect
         , toRequest
         , send
+        , sendWithCacheBuster
         )
 
 {-| Extra helpers for more easily building Http requests that require greater
@@ -33,7 +34,7 @@ configuration than what is provided by `elm-http` out of the box.
 @docs withHeader, withHeaders, withStringBody, withJsonBody, withMultipartStringBody, withUrlEncodedBody, withTimeout, withCredentials, withQueryParams, withExpect
 
 # Make the request
-@docs toRequest, send
+@docs toRequest, send, sendWithCacheBuster
 -}
 
 -- where
@@ -314,6 +315,30 @@ send : (Result Http.Error a -> msg) -> RequestBuilder a -> Cmd msg
 send tagger builder =
     Http.send tagger <| toRequest builder
 
+{-| Send the request with a Time based cache buster added to the URL.
+
+An additional query parameter '_', reflecting the time since Unix Epoch is added
+to the URL e.g. https://example.com/api/items?_=1481633217383
+
+    type Msg
+        = Items (Result Http.Error String)
+
+    get "https://example.com/api/items"
+        |> withExpect (Http.expectString)
+        |> sendWithCacheBuster Items
+-}
+sendWithCacheBuster : (Result Http.Error a -> msg) -> RequestBuilder a -> Cmd msg
+sendWithCacheBuster tagger builder =
+    let
+        timeTask = Time.now
+        request t =
+            builder
+                |> withQueryParams [("_", toString t)]
+                |> toRequest
+                |> Http.toTask
+        requestTask = Task.andThen request timeTask
+    in
+        Task.attempt tagger requestTask
 
 joinUrlEncoded : List ( String, String ) -> String
 joinUrlEncoded args =
