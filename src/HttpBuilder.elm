@@ -19,9 +19,10 @@ module HttpBuilder
         , withCredentials
         , withQueryParams
         , withExpect
+        , withCacheBuster
         , toRequest
+        , toTask
         , send
-        , sendWithCacheBuster
         )
 
 {-| Extra helpers for more easily building Http requests that require greater
@@ -31,10 +32,10 @@ configuration than what is provided by `elm-http` out of the box.
 @docs RequestBuilder, get, post, put, patch, delete, options, trace, head
 
 # Configure request properties
-@docs withHeader, withHeaders, withStringBody, withJsonBody, withMultipartStringBody, withUrlEncodedBody, withTimeout, withCredentials, withQueryParams, withExpect
+@docs withHeader, withHeaders, withStringBody, withJsonBody, withMultipartStringBody, withUrlEncodedBody, withTimeout, withCredentials, withQueryParams, withExpect, withCacheBuster
 
 # Make the request
-@docs toRequest, send, sendWithCacheBuster
+@docs toRequest, toTask, send
 -}
 
 -- where
@@ -43,14 +44,14 @@ import String
 import Task exposing (Task)
 import Maybe exposing (Maybe(..))
 import Time exposing (Time)
-import Json.Decode as Decode
 import Json.Encode as Encode
-import Dict exposing (Dict)
 import Result exposing (Result(Ok, Err))
 import Http
 
 
-type alias RequestDetails a =
+{-| A type for chaining request configuration
+-}
+type alias RequestBuilder a =
     { method : String
     , headers : List Http.Header
     , url : String
@@ -59,32 +60,22 @@ type alias RequestDetails a =
     , timeout : Maybe Time
     , withCredentials : Bool
     , queryParams : List ( String, String )
+    , cacheBuster : Maybe String
     }
-
-
-{-| A type for chaining request configuration
--}
-type RequestBuilder a
-    = RequestBuilder (RequestDetails a)
 
 
 requestWithMethodAndUrl : String -> String -> RequestBuilder ()
 requestWithMethodAndUrl method url =
-    RequestBuilder
-        { method = method
-        , url = url
-        , headers = []
-        , body = Http.emptyBody
-        , expect = Http.expectStringResponse (\_ -> Ok ())
-        , timeout = Nothing
-        , withCredentials = False
-        , queryParams = []
-        }
-
-
-map : (RequestDetails a -> RequestDetails b) -> RequestBuilder a -> RequestBuilder b
-map fn (RequestBuilder details) =
-    RequestBuilder <| fn details
+    { method = method
+    , url = url
+    , headers = []
+    , body = Http.emptyBody
+    , expect = Http.expectStringResponse (\_ -> Ok ())
+    , timeout = Nothing
+    , withCredentials = False
+    , queryParams = []
+    , cacheBuster = Nothing
+    }
 
 
 {-| Start building a GET request with a given URL
@@ -165,8 +156,8 @@ head =
         |> withHeader "Content-Type" "application/json"
 -}
 withHeader : String -> String -> RequestBuilder a -> RequestBuilder a
-withHeader key value =
-    map <| \details -> { details | headers = (Http.header key value) :: details.headers }
+withHeader key value builder =
+    { builder | headers = (Http.header key value) :: builder.headers }
 
 
 {-| Add many headers to a request
@@ -175,17 +166,15 @@ withHeader key value =
         |> withHeaders [("Content-Type", "application/json"), ("Accept", "application/json")]
 -}
 withHeaders : List ( String, String ) -> RequestBuilder a -> RequestBuilder a
-withHeaders headerPairs =
-    map <|
-        \details ->
-            { details
-                | headers = (List.map (uncurry Http.header) headerPairs) ++ details.headers
-            }
+withHeaders headerPairs builder =
+    { builder
+        | headers = (List.map (uncurry Http.header) headerPairs) ++ builder.headers
+    }
 
 
 withBody : Http.Body -> RequestBuilder a -> RequestBuilder a
-withBody body =
-    map <| \details -> { details | body = body }
+withBody body builder =
+    { builder | body = body }
 
 
 {-| Convenience function for adding a string body to a request
@@ -223,11 +212,7 @@ your type signatures.
 -}
 withMultipartStringBody : List ( String, String ) -> RequestBuilder a -> RequestBuilder a
 withMultipartStringBody partPairs =
-    map <|
-        \details ->
-            { details
-                | body = Http.multipartBody <| List.map (uncurry Http.stringPart) partPairs
-            }
+    withBody <| Http.multipartBody <| List.map (uncurry Http.stringPart) partPairs
 
 
 {-| Convenience function for adding url encoded bodies
@@ -246,8 +231,8 @@ withUrlEncodedBody =
         |> withTimeout (10 * Time.second)
 -}
 withTimeout : Time -> RequestBuilder a -> RequestBuilder a
-withTimeout timeout =
-    map <| \details -> { details | timeout = Just timeout }
+withTimeout timeout builder =
+    { builder | timeout = Just timeout }
 
 
 {-| Set the `withCredentials` flag on the request to True. Works via
@@ -257,8 +242,8 @@ withTimeout timeout =
         |> withCredentials
 -}
 withCredentials : RequestBuilder a -> RequestBuilder a
-withCredentials =
-    map <| \details -> { details | withCredentials = True }
+withCredentials builder =
+    { builder | withCredentials = True }
 
 
 {-| Choose an `Expect` for the request
@@ -267,8 +252,8 @@ withCredentials =
         |> withExpect (Http.expectJson itemsDecoder)
 -}
 withExpect : Http.Expect b -> RequestBuilder a -> RequestBuilder b
-withExpect expect =
-    map <| \details -> { details | expect = expect }
+withExpect expect builder =
+    { builder | expect = expect }
 
 
 {-| Add some query params to the url for the request
@@ -279,66 +264,99 @@ withExpect expect =
     -- sends a request to https://example.com/api/items/1?hello=world&foo=bar&baz=qux
 -}
 withQueryParams : List ( String, String ) -> RequestBuilder a -> RequestBuilder a
-withQueryParams queryParams =
-    map <| \details -> { details | queryParams = details.queryParams ++ queryParams }
+withQueryParams queryParams builder =
+    { builder | queryParams = builder.queryParams ++ queryParams }
 
-
-{-| Extract the Http.Request component of the builder, for introspection and
-testing
--}
-toRequest : RequestBuilder a -> Http.Request a
-toRequest (RequestBuilder details) =
-    let
-        encodedParams =
-            joinUrlEncoded details.queryParams
-
-        fullUrl =
-            if String.isEmpty encodedParams then
-                details.url
-            else
-                details.url ++ "?" ++ encodedParams
-    in
-        Http.request
-            { method = details.method
-            , url = fullUrl
-            , headers = details.headers
-            , body = details.body
-            , expect = details.expect
-            , timeout = details.timeout
-            , withCredentials = details.withCredentials
-            }
-
-
-{-| Send the request using Http.send
--}
-send : (Result Http.Error a -> msg) -> RequestBuilder a -> Cmd msg
-send tagger builder =
-    Http.send tagger <| toRequest builder
 
 {-| Send the request with a Time based cache buster added to the URL.
-
-An additional query parameter '_', reflecting the time since Unix Epoch is added
-to the URL e.g. https://example.com/api/items?_=1481633217383
+You provide a key for an extra query param, and when the request is sent that
+query param will be given a value with the current timestamp.
 
     type Msg
         = Items (Result Http.Error String)
 
     get "https://example.com/api/items"
         |> withExpect (Http.expectString)
-        |> sendWithCacheBuster Items
+        |> withCacheBuster "cache_buster"
+        |> send Items
+
+    -- makes a request to https://example.com/api/items?cache_buster=1481633217383
 -}
-sendWithCacheBuster : (Result Http.Error a -> msg) -> RequestBuilder a -> Cmd msg
-sendWithCacheBuster tagger builder =
+withCacheBuster : String -> RequestBuilder a -> RequestBuilder a
+withCacheBuster paramName builder =
+    { builder | cacheBuster = Just paramName }
+
+
+{-| Extract the Http.Request component of the builder in case you want to use it
+directly. **This function is lossy** and will discard some of the extra stuff
+that HttpBuilder allows you to do.
+
+Things that will be lost:
+- Attaching a cache buster to requests using `withCacheBuster`
+-}
+toRequest : RequestBuilder a -> Http.Request a
+toRequest builder =
     let
-        timeTask = Time.now
-        request t =
-            builder
-                |> withQueryParams [("_", toString t)]
-                |> toRequest
-                |> Http.toTask
-        requestTask = Task.andThen request timeTask
+        encodedParams =
+            joinUrlEncoded builder.queryParams
+
+        fullUrl =
+            if String.isEmpty encodedParams then
+                builder.url
+            else
+                builder.url ++ "?" ++ encodedParams
     in
-        Task.attempt tagger requestTask
+        Http.request
+            { method = builder.method
+            , url = fullUrl
+            , headers = builder.headers
+            , body = builder.body
+            , expect = builder.expect
+            , timeout = builder.timeout
+            , withCredentials = builder.withCredentials
+            }
+
+
+{-| Convert the RequestBuilder to a Task with all options applied. `toTask`
+differs from `toRequest` in that it retains all extra behavior allowed by
+HttpBuilder, including
+
+- Attaching a cache buster to requests using `withCacheBuster`
+-}
+toTask : RequestBuilder a -> Task Http.Error a
+toTask builder =
+    case builder.cacheBuster of
+        Just paramName ->
+            toTaskWithCacheBuster paramName builder
+
+        Nothing ->
+            toTaskPlain builder
+
+
+toTaskPlain : RequestBuilder a -> Task Http.Error a
+toTaskPlain builder =
+    Http.toTask <| toRequest builder
+
+
+toTaskWithCacheBuster : String -> RequestBuilder a -> Task Http.Error a
+toTaskWithCacheBuster paramName builder =
+    let
+        request timestamp =
+            builder
+                |> withQueryParams [ ( paramName, toString timestamp ) ]
+                |> toTaskPlain
+    in
+        Time.now |> Task.andThen request
+
+
+{-| Send the request
+-}
+send : (Result Http.Error a -> msg) -> RequestBuilder a -> Cmd msg
+send tagger builder =
+    builder
+        |> toTask
+        |> Task.attempt tagger
+
 
 joinUrlEncoded : List ( String, String ) -> String
 joinUrlEncoded args =
