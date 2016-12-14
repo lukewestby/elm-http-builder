@@ -30,17 +30,18 @@ expectNothing =
     Http.expectStringResponse alwaysEmptyOk
 
 
-requestWithBody : Http.Body -> Request ()
-requestWithBody body =
-    Http.request
-        { method = "POST"
-        , url = "example.com"
-        , expect = expectNothing
-        , timeout = Nothing
-        , withCredentials = False
-        , headers = []
-        , body = body
-        }
+defaultBuilder : RequestBuilder ()
+defaultBuilder =
+    { method = "POST"
+    , url = "example.com"
+    , expect = expectNothing
+    , timeout = Nothing
+    , withCredentials = False
+    , headers = []
+    , body = Http.emptyBody
+    , queryParams = []
+    , cacheBuster = Nothing
+    }
 
 
 all : Test
@@ -59,22 +60,23 @@ all =
                             |> withTimeout (10 * Time.second)
                             |> withCredentials
                             |> withQueryParams [ ( "hello", "world" ) ]
+                            |> withCacheBuster "cb"
                             |> withExpect expectNothing
-                            |> toRequest
 
                     expected =
-                        Http.request
-                            { method = "GET"
-                            , url = "http://example.com?hello=world"
-                            , body = Http.stringBody "text/plain" """{ "test": "body" }"""
-                            , timeout = Just (10 * Time.second)
-                            , expect = expectNothing
-                            , withCredentials = True
-                            , headers =
-                                [ Http.header "OtherTest" "Header"
-                                , Http.header "Test" "Header"
-                                ]
-                            }
+                        { method = "GET"
+                        , url = "http://example.com"
+                        , queryParams = [ ( "hello", "world" ) ]
+                        , body = Http.stringBody "text/plain" """{ "test": "body" }"""
+                        , timeout = Just (10 * Time.second)
+                        , expect = expectNothing
+                        , withCredentials = True
+                        , headers =
+                            [ Http.header "OtherTest" "Header"
+                            , Http.header "Test" "Header"
+                            ]
+                        , cacheBuster = Just "cb"
+                        }
                 in
                     Expect.equal expected actual
         , describe "with*Body functions"
@@ -83,28 +85,24 @@ all =
                     post "example.com"
                         |> withStringBody "text/plain" "hello"
                         |> withExpect expectNothing
-                        |> toRequest
-                        |> Expect.equal (requestWithBody (Http.stringBody "text/plain" "hello"))
+                        |> Expect.equal { defaultBuilder | body = Http.stringBody "text/plain" "hello" }
             , test "withJsonBody applies a Json.Value as a string" <|
                 \() ->
                     post "example.com"
                         |> withJsonBody (Encode.string "hello")
                         |> withExpect expectNothing
-                        |> toRequest
-                        |> Expect.equal (requestWithBody (Http.jsonBody (Encode.string "hello")))
+                        |> Expect.equal { defaultBuilder | body = Http.jsonBody (Encode.string "hello") }
             , test "withUrlEncodedBody encodes pairs as url components" <|
                 \() ->
                     post "example.com"
                         |> withUrlEncodedBody [ ( "hello", "w orld" ) ]
                         |> withExpect expectNothing
-                        |> toRequest
-                        |> Expect.equal (requestWithBody (Http.stringBody "application/x-www-form-urlencoded" "hello=w+orld"))
+                        |> Expect.equal { defaultBuilder | body = Http.stringBody "application/x-www-form-urlencoded" "hello=w+orld" }
             , test "withMultipartStringBody passes through to Http.multipart" <|
                 \() ->
                     post "example.com"
                         |> withMultipartStringBody [ ( "hello", "world" ) ]
                         |> withExpect expectNothing
-                        |> toRequest
-                        |> Expect.equal (requestWithBody (Http.multipartBody [ Http.stringPart "hello" "world" ]))
+                        |> Expect.equal { defaultBuilder | body = Http.multipartBody [ Http.stringPart "hello" "world" ] }
             ]
         ]
