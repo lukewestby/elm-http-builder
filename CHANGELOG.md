@@ -1,3 +1,41 @@
+### 5.0.0
+
+This release accomplishes two goals.
+
+1. The `RequestBuilder` type is no longer opaque. This comes after observing
+much debate in the community over the merits and drawbacks of hiding details of
+a library's types from the user. In this case I have determined it no longer
+makes sense to do so. If `RequestBuilder` is opaque and so is `Http.Request`,
+there is no longer any opportunity to do introspection, write tests, or create
+tooling around the `RequestBuilder` type. So we simply expose the internal
+structure of `RequestBuilder` as a record.
+
+2. We're taking over the `send` function again. Thanks to a pull request by @s60
+I am convinced that this will be okay. We can still have the same signature for
+`send`, and then use tasks inside of `send` to mess around and do extra stuff.
+This will just require that the docs for `toRequest` be very clear that it is
+lossy with respect to `HttpBuilder` features. So far there is one new feature
+that is being brought over from the previous versions, `withCacheBuster`. This
+will be a foundation for bringing back other stuff and adding new things as
+well.
+
+#### Removals
+
+_None_
+
+#### Breaking Changes
+
+- `RequestBuilder a` is no longer opaque
+
+#### Additions
+
+- `toTask`: Convert your `RequestBuilder a` into a `Task Http.Error a` with all
+the extras that `HttpBuilder` has and will have to offer.
+- `withCacheBuster`: append a cache buster query param with the current
+timestamp to your request's URL.
+
+---
+
 ### 4.0.0
 
 A lot has happened since 3.0.0! The API is smaller, and more focused and I'm
