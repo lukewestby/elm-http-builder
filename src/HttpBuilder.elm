@@ -202,7 +202,7 @@ withJsonBody value =
     withBody <| Http.jsonBody value
 
 
-{-| Convience function for adding multipart bodies composed of String, String
+{-| Convenience function for adding multipart bodies composed of String, String
 key-value pairs. Since `Http.stringData` is currently the only `Http.Data`
 creator having this function removes the need to use the `Http.Data` type in
 your type signatures.
