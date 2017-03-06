@@ -11,6 +11,7 @@ module HttpBuilder
         , head
         , withHeader
         , withHeaders
+        , withBody
         , withStringBody
         , withJsonBody
         , withMultipartStringBody
