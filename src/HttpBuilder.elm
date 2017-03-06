@@ -33,7 +33,7 @@ configuration than what is provided by `elm-http` out of the box.
 @docs RequestBuilder, get, post, put, patch, delete, options, trace, head
 
 # Configure request properties
-@docs withHeader, withHeaders, withStringBody, withJsonBody, withMultipartStringBody, withUrlEncodedBody, withTimeout, withCredentials, withQueryParams, withExpect, withCacheBuster
+@docs withHeader, withHeaders, withBody, withStringBody, withJsonBody, withMultipartStringBody, withUrlEncodedBody, withTimeout, withCredentials, withQueryParams, withExpect, withCacheBuster
 
 # Make the request
 @docs toRequest, toTask, send
@@ -173,6 +173,10 @@ withHeaders headerPairs builder =
     }
 
 
+{-| Add an Http.Body to the request
+    post "https://example.com/api/save-text"
+        |> withBody (Http.stringBody "text/plain" "Hello!")
+-}
 withBody : Http.Body -> RequestBuilder a -> RequestBuilder a
 withBody body builder =
     { builder | body = body }
