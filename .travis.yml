@@ -3,5 +3,5 @@ node_js:
   - "node"
 install:
   - npm install -g elm
-  - npm install -g elm-test
+  - npm install -g elm-test@0.18.0
 script: sh ./scripts/test.sh
