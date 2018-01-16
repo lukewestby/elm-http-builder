@@ -269,7 +269,7 @@ withExpect expect builder =
 -}
 withExpectJson : Decoder b -> RequestBuilder a -> RequestBuilder b
 withExpectJson decoder builder =
-    { builder | expect = (Http.expectJson decoder) }
+    { builder | expect = Http.expectJson decoder }
 
 
 {-| Choose a String `Expect` for the request
@@ -279,7 +279,7 @@ withExpectJson decoder builder =
 -}
 withExpectString : RequestBuilder a -> RequestBuilder String
 withExpectString builder =
-    { builder | expect = (Http.expectString) }
+    { builder | expect = Http.expectString }
 
 
 {-| Add some query params to the url for the request
