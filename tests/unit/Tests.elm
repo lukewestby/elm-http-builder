@@ -56,6 +56,7 @@ all =
                         get "http://example.com"
                             |> withHeader "Test" "Header"
                             |> withHeaders [ ( "OtherTest", "Header" ) ]
+                            |> withToken "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhIjoiYSJ9.MvhYYpYBuN1rUaV0GGnQGvr889zY0xSc20Lnt8nMTfE"
                             |> withStringBody "text/plain" """{ "test": "body" }"""
                             |> withTimeout (10 * Time.second)
                             |> withCredentials
@@ -74,6 +75,7 @@ all =
                         , headers =
                             [ Http.header "OtherTest" "Header"
                             , Http.header "Test" "Header"
+                            , Http.header "Authorization" "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhIjoiYSJ9.MvhYYpYBuN1rUaV0GGnQGvr889zY0xSc20Lnt8nMTfE"
                             ]
                         , cacheBuster = Just "cb"
                         }
