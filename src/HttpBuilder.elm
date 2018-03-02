@@ -11,6 +11,7 @@ module HttpBuilder
         , head
         , withHeader
         , withHeaders
+        , withToken
         , withBody
         , withStringBody
         , withJsonBody
@@ -171,6 +172,15 @@ withHeaders headerPairs builder =
     { builder
         | headers = (List.map (uncurry Http.header) headerPairs) ++ builder.headers
     }
+
+{-| Add a authorization token to a request
+
+    get "https://example.com/api/items/1"
+        |> withToken "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhIjoiYSJ9.MvhYYpYBuN1rUaV0GGnQGvr889zY0xSc20Lnt8nMTfE"
+-}
+withToken : String -> RequestBuilder a -> RequestBuilder a
+withToken value builder =
+    { builder | headers = (Http.header "Authorization" ("Bearer " ++ value)) :: builder.headers }
 
 
 {-| Add an Http.Body to the request
