@@ -46,6 +46,7 @@ import Task exposing (Task)
 import Maybe exposing (Maybe(..))
 import Time exposing (Time)
 import Json.Encode as Encode
+import Json.Decode exposing (Decoder)
 import Result exposing (Result(Ok, Err))
 import Http
 
@@ -259,6 +260,26 @@ withCredentials builder =
 withExpect : Http.Expect b -> RequestBuilder a -> RequestBuilder b
 withExpect expect builder =
     { builder | expect = expect }
+
+
+{-| Choose a Json `Expect` for the request
+
+    get "https://example.com/api/items/1"
+        |> withExpectJson itemsDecoder
+-}
+withExpectJson : Decoder b -> RequestBuilder a -> RequestBuilder b
+withExpectJson decoder builder =
+    { builder | expect = Http.expectJson decoder }
+
+
+{-| Choose a String `Expect` for the request
+
+    get "https://example.com/api/items/1"
+        |> withExpectString
+-}
+withExpectString : RequestBuilder a -> RequestBuilder String
+withExpectString builder =
+    { builder | expect = Http.expectString }
 
 
 {-| Add some query params to the url for the request
