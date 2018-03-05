@@ -1,6 +1,5 @@
 # elm-http-builder
 
-[![ICARE](https://icarebadge.com/ICARE-white.png)](https://icarebadge.com)
 [![Build Status](https://travis-ci.org/lukewestby/elm-http-builder.svg?branch=master)](https://travis-ci.org/lukewestby/elm-http-builder)
 
 Chainable functions for building HTTP requests.
