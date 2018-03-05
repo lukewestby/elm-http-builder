@@ -175,6 +175,7 @@ withHeaders headerPairs builder =
 
 
 {-| Add an Http.Body to the request
+
     post "https://example.com/api/save-text"
         |> withBody (Http.stringBody "text/plain" "Hello!")
 -}
