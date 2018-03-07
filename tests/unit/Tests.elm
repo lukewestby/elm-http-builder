@@ -54,6 +54,7 @@ all =
                 let
                     actual =
                         get "http://example.com"
+                            |> withBearerToken "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhIjoiYSJ9.MvhYYpYBuN1rUaV0GGnQGvr889zY0xSc20Lnt8nMTfE"
                             |> withHeader "Test" "Header"
                             |> withHeaders [ ( "OtherTest", "Header" ) ]
                             |> withStringBody "text/plain" """{ "test": "body" }"""
@@ -74,6 +75,7 @@ all =
                         , headers =
                             [ Http.header "OtherTest" "Header"
                             , Http.header "Test" "Header"
+                            , Http.header "Authorization" "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhIjoiYSJ9.MvhYYpYBuN1rUaV0GGnQGvr889zY0xSc20Lnt8nMTfE"
                             ]
                         , cacheBuster = Just "cb"
                         }
