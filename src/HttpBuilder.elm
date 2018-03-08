@@ -1,55 +1,67 @@
 module HttpBuilder
     exposing
         ( RequestBuilder
+        , delete
         , get
+        , head
+        , options
+        , patch
         , post
         , put
-        , patch
-        , delete
-        , options
-        , trace
-        , head
-        , withHeader
-        , withHeaders
-        , withBearerToken
-        , withBody
-        , withStringBody
-        , withJsonBody
-        , withMultipartStringBody
-        , withUrlEncodedBody
-        , withTimeout
-        , withCredentials
-        , withQueryParams
-        , withExpect
-        , withCacheBuster
+        , send
         , toRequest
         , toTask
-        , send
+        , trace
+        , withBearerToken
+        , withBody
+        , withCacheBuster
+        , withCredentials
+        , withExpect
+        , withExpectJson
+        , withExpectString
+        , withHeader
+        , withHeaders
+        , withJsonBody
+        , withMultipartStringBody
+        , withQueryParams
+        , withStringBody
+        , withTimeout
+        , withUrlEncodedBody
         )
 
 {-| Extra helpers for more easily building Http requests that require greater
 configuration than what is provided by `elm-http` out of the box.
 
+
 # Start a request
+
 @docs RequestBuilder, get, post, put, patch, delete, options, trace, head
 
+
 # Configure request properties
-@docs withHeader, withHeaders, withBody, withStringBody, withJsonBody, withMultipartStringBody, withUrlEncodedBody, withTimeout, withCredentials, withQueryParams, withExpect, withCacheBuster
+
+@docs withHeader, withHeaders, withBody, withStringBody, withJsonBody
+@docs withMultipartStringBody, withUrlEncodedBody, withTimeout, withCredentials
+@docs withQueryParams, withExpect, withCacheBuster, withExpectJson
+@docs withExpectString, withBearerToken
+
 
 # Make the request
+
 @docs toRequest, toTask, send
+
 -}
 
 -- where
 
+import Http
+import Json.Decode exposing (Decoder)
+import Json.Encode as Encode
+import Maybe exposing (Maybe(..))
+import Result exposing (Result(Err, Ok))
 import String
 import Task exposing (Task)
-import Maybe exposing (Maybe(..))
 import Time exposing (Time)
-import Json.Encode as Encode
-import Json.Decode exposing (Decoder)
-import Result exposing (Result(Ok, Err))
-import Http
 
 
 {-| A type for chaining request configuration
@@ -84,6 +96,7 @@ requestWithMethodAndUrl method url =
 {-| Start building a GET request with a given URL
 
     get "https://example.com/api/items/1"
+
 -}
 get : String -> RequestBuilder ()
 get =
@@ -93,6 +106,7 @@ get =
 {-| Start building a POST request with a given URL
 
     post "https://example.com/api/items"
+
 -}
 post : String -> RequestBuilder ()
 post =
@@ -102,6 +116,7 @@ post =
 {-| Start building a PUT request with a given URL
 
     put "https://example.com/api/items/1"
+
 -}
 put : String -> RequestBuilder ()
 put =
@@ -111,6 +126,7 @@ put =
 {-| Start building a PATCH request with a given URL
 
     patch "https://example.com/api/items/1"
+
 -}
 patch : String -> RequestBuilder ()
 patch =
@@ -120,6 +136,7 @@ patch =
 {-| Start building a DELETE request with a given URL
 
     delete "https://example.com/api/items/1"
+
 -}
 delete : String -> RequestBuilder ()
 delete =
@@ -129,6 +146,7 @@ delete =
 {-| Start building a OPTIONS request with a given URL
 
     options "https://example.com/api/items/1"
+
 -}
 options : String -> RequestBuilder ()
 options =
@@ -138,6 +156,7 @@ options =
 {-| Start building a TRACE request with a given URL
 
     trace "https://example.com/api/items/1"
+
 -}
 trace : String -> RequestBuilder ()
 trace =
@@ -147,6 +166,7 @@ trace =
 {-| Start building a HEAD request with a given URL
 
     head "https://example.com/api/items/1"
+
 -}
 head : String -> RequestBuilder ()
 head =
@@ -157,37 +177,42 @@ head =
 
     get "https://example.com/api/items/1"
         |> withHeader "Content-Type" "application/json"
+
 -}
 withHeader : String -> String -> RequestBuilder a -> RequestBuilder a
 withHeader key value builder =
-    { builder | headers = (Http.header key value) :: builder.headers }
+    { builder | headers = Http.header key value :: builder.headers }
 
 
 {-| Add many headers to a request
 
     get "https://example.com/api/items/1"
         |> withHeaders [("Content-Type", "application/json"), ("Accept", "application/json")]
+
 -}
 withHeaders : List ( String, String ) -> RequestBuilder a -> RequestBuilder a
 withHeaders headerPairs builder =
     { builder
-        | headers = (List.map (uncurry Http.header) headerPairs) ++ builder.headers
+        | headers = List.map (uncurry Http.header) headerPairs ++ builder.headers
     }
+
 
 {-| Add a bearer token to a request
 
     get "https://example.com/api/items/1"
         |> withBearerToken "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhIjoiYSJ9.MvhYYpYBuN1rUaV0GGnQGvr889zY0xSc20Lnt8nMTfE"
+
 -}
 withBearerToken : String -> RequestBuilder a -> RequestBuilder a
 withBearerToken value builder =
-    { builder | headers = (Http.header "Authorization" ("Bearer " ++ value)) :: builder.headers }
+    { builder | headers = Http.header "Authorization" ("Bearer " ++ value) :: builder.headers }
 
 
 {-| Add an Http.Body to the request
 
     post "https://example.com/api/save-text"
         |> withBody (Http.stringBody "text/plain" "Hello!")
+
 -}
 withBody : Http.Body -> RequestBuilder a -> RequestBuilder a
 withBody body builder =
@@ -198,6 +223,7 @@ withBody body builder =
 
     post "https://example.com/api/items/1"
         |> withStringBody "application/json" """{ "sortBy": "coolness", "take": 10 }"""
+
 -}
 withStringBody : String -> String -> RequestBuilder a -> RequestBuilder a
 withStringBody contentType value =
@@ -213,6 +239,7 @@ withStringBody contentType value =
 
     post "https://example.com/api/items/1"
         |> withJsonBody params
+
 -}
 withJsonBody : Encode.Value -> RequestBuilder a -> RequestBuilder a
 withJsonBody value =
@@ -226,6 +253,7 @@ your type signatures.
 
     post "https://example.com/api/items/1"
         |> withMultipartStringBody [("user", JS.encode user)]
+
 -}
 withMultipartStringBody : List ( String, String ) -> RequestBuilder a -> RequestBuilder a
 withMultipartStringBody partPairs =
@@ -236,6 +264,7 @@ withMultipartStringBody partPairs =
 
     post "https://example.com/api/whatever"
         |> withUrlEncodedBody [("user", "Luke"), ("pwd", "secret")]
+
 -}
 withUrlEncodedBody : List ( String, String ) -> RequestBuilder a -> RequestBuilder a
 withUrlEncodedBody =
@@ -246,6 +275,7 @@ withUrlEncodedBody =
 
     get "https://example.com/api/items/1"
         |> withTimeout (10 * Time.second)
+
 -}
 withTimeout : Time -> RequestBuilder a -> RequestBuilder a
 withTimeout timeout builder =
@@ -257,6 +287,7 @@ withTimeout timeout builder =
 
     get "https://example.com/api/items/1"
         |> withCredentials
+
 -}
 withCredentials : RequestBuilder a -> RequestBuilder a
 withCredentials builder =
@@ -267,6 +298,7 @@ withCredentials builder =
 
     get "https://example.com/api/items/1"
         |> withExpect (Http.expectJson itemsDecoder)
+
 -}
 withExpect : Http.Expect b -> RequestBuilder a -> RequestBuilder b
 withExpect expect builder =
@@ -277,6 +309,7 @@ withExpect expect builder =
 
     get "https://example.com/api/items/1"
         |> withExpectJson itemsDecoder
+
 -}
 withExpectJson : Decoder b -> RequestBuilder a -> RequestBuilder b
 withExpectJson decoder builder =
@@ -287,6 +320,7 @@ withExpectJson decoder builder =
 
     get "https://example.com/api/items/1"
         |> withExpectString
+
 -}
 withExpectString : RequestBuilder a -> RequestBuilder String
 withExpectString builder =
@@ -299,6 +333,7 @@ withExpectString builder =
         |> withQueryParams [("hello", "world"), ("foo", "bar")]
         |> withQueryParams [("baz", "qux")]
     -- sends a request to https://example.com/api/items/1?hello=world&foo=bar&baz=qux
+
 -}
 withQueryParams : List ( String, String ) -> RequestBuilder a -> RequestBuilder a
 withQueryParams queryParams builder =
@@ -318,6 +353,7 @@ query param will be given a value with the current timestamp.
         |> send Items
 
     -- makes a request to https://example.com/api/items?cache_buster=1481633217383
+
 -}
 withCacheBuster : String -> RequestBuilder a -> RequestBuilder a
 withCacheBuster paramName builder =
@@ -329,7 +365,9 @@ directly. **This function is lossy** and will discard some of the extra stuff
 that HttpBuilder allows you to do.
 
 Things that will be lost:
-- Attaching a cache buster to requests using `withCacheBuster`
+
+  - Attaching a cache buster to requests using `withCacheBuster`
+
 -}
 toRequest : RequestBuilder a -> Http.Request a
 toRequest builder =
@@ -343,22 +381,23 @@ toRequest builder =
             else
                 builder.url ++ "?" ++ encodedParams
     in
-        Http.request
-            { method = builder.method
-            , url = fullUrl
-            , headers = builder.headers
-            , body = builder.body
-            , expect = builder.expect
-            , timeout = builder.timeout
-            , withCredentials = builder.withCredentials
-            }
+    Http.request
+        { method = builder.method
+        , url = fullUrl
+        , headers = builder.headers
+        , body = builder.body
+        , expect = builder.expect
+        , timeout = builder.timeout
+        , withCredentials = builder.withCredentials
+        }
 
 
 {-| Convert the RequestBuilder to a Task with all options applied. `toTask`
 differs from `toRequest` in that it retains all extra behavior allowed by
 HttpBuilder, including
 
-- Attaching a cache buster to requests using `withCacheBuster`
+  - Attaching a cache buster to requests using `withCacheBuster`
+
 -}
 toTask : RequestBuilder a -> Task Http.Error a
 toTask builder =
@@ -383,7 +422,7 @@ toTaskWithCacheBuster paramName builder =
                 |> withQueryParams [ ( paramName, toString timestamp ) ]
                 |> toTaskPlain
     in
-        Time.now |> Task.andThen request
+    Time.now |> Task.andThen request
 
 
 {-| Send the request
