@@ -1,3 +1,16 @@
+### 5.2.0
+
+#### Additions
+
+- `withBearerToken`: add an `Authorization: Bearer ` header (@amarantedaniel)
+- `withExpectJson`: shortcut for using `Http.expectJson` (@dbottisti)
+- `withExpectString`: shortcut for using `Http.expectString` (@dbottisti)
+
+#### Stuff
+
+- Upgrade `elm-test`
+- Remove my old Twitter handle from README
+
 ### 5.0.0
 
 This release accomplishes two goals.
