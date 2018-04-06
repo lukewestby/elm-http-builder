@@ -8,6 +8,7 @@ module HttpBuilder
         , patch
         , post
         , put
+        , requestUrl
         , send
         , toRequest
         , toTask
@@ -49,6 +50,11 @@ configuration than what is provided by `elm-http` out of the box.
 # Make the request
 
 @docs toRequest, toTask, send
+
+
+# Retreive data about the request
+
+@docs requestUrl
 
 -}
 
@@ -360,6 +366,24 @@ withCacheBuster paramName builder =
     { builder | cacheBuster = Just paramName }
 
 
+{-| Convert the RequestBuilder to a string representation of the URL
+with all options applied.
+-}
+requestUrl : RequestBuilder a -> String
+requestUrl builder =
+    let
+        encodedParams =
+            joinUrlEncoded builder.queryParams
+
+        fullUrl =
+            if String.isEmpty encodedParams then
+                builder.url
+            else
+                builder.url ++ "?" ++ encodedParams
+    in
+        fullUrl
+
+
 {-| Extract the Http.Request component of the builder in case you want to use it
 directly. **This function is lossy** and will discard some of the extra stuff
 that HttpBuilder allows you to do.
@@ -371,19 +395,9 @@ Things that will be lost:
 -}
 toRequest : RequestBuilder a -> Http.Request a
 toRequest builder =
-    let
-        encodedParams =
-            joinUrlEncoded builder.queryParams
-
-        fullUrl =
-            if String.isEmpty encodedParams then
-                builder.url
-            else
-                builder.url ++ "?" ++ encodedParams
-    in
     Http.request
         { method = builder.method
-        , url = fullUrl
+        , url = requestUrl builder
         , headers = builder.headers
         , body = builder.body
         , expect = builder.expect
@@ -422,7 +436,7 @@ toTaskWithCacheBuster paramName builder =
                 |> withQueryParams [ ( paramName, toString timestamp ) ]
                 |> toTaskPlain
     in
-    Time.now |> Task.andThen request
+        Time.now |> Task.andThen request
 
 
 {-| Send the request

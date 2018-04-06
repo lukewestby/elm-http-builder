@@ -107,4 +107,12 @@ all =
                         |> withExpect expectNothing
                         |> Expect.equal { defaultBuilder | body = Http.multipartBody [ Http.stringPart "hello" "world" ] }
             ]
+          , describe "metadata functions" 
+          [ test "requestUrl returns a string representation of the current request builder url with paramaters" <|
+            \() ->
+              get "http://example.com"
+              |> withQueryParams [ ( "hello", "world" ), ("foo", "bar") ]
+              |> requestUrl
+              |> Expect.equal "http://example.com?hello=world&foo=bar"
+          ]
         ]
