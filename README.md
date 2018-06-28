@@ -4,8 +4,6 @@ Chainable functions for building HTTP requests
 
 **Need help? Join the #http-builder channel in the [Elm Slack](https://elmlang.herokuapp.com)!**
 
-## Example
-
 ```elm
 import Http
 import HttpBuilder exposing (..)
