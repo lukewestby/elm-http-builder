@@ -1,7 +1,7 @@
 {
     "type": "package",
     "name": "lukewestby/elm-http-builder",
-    "summary": "Functions and types for building HTTP requests",
+    "summary": "Pipeable functions for building HTTP requests",
     "license": "MIT",
     "version": "6.0.0",
     "exposed-modules": [
