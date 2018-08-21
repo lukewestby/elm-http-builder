@@ -1,19 +1,10 @@
 # elm-http-builder
 
-[![Build Status](https://travis-ci.org/lukewestby/elm-http-builder.svg?branch=master)](https://travis-ci.org/lukewestby/elm-http-builder)
-
-Chainable functions for building HTTP requests.
+Chainable functions for building HTTP requests
 
 **Need help? Join the #http-builder channel in the [Elm Slack](https://elmlang.herokuapp.com)!**
 
-
-> Thanks to @fredcy, @rileylark, and @etaque for the original discussion of the
-  API, and to @knewter for pairing and discussion on the 0.18 upgrade.
-
-## Example
-
 ```elm
-import Time
 import Http
 import HttpBuilder exposing (..)
 import Json.Decode as Decode
@@ -45,14 +36,8 @@ addItem item =
         |> withQueryParams [ ("hello", "world") ]
         |> withHeader "X-My-Header" "Some Header Value"
         |> withJsonBody (itemEncoder item)
-        |> withTimeout (10 * Time.second)
-        |> withExpect (Http.expectJson itemsDecoder)
+        |> withTimeout 10000
+        |> withExpectJson itemsDecoder
         |> withCredentials
         |> send handleRequestComplete
 ```
-
-## Contributing
-
-I'm happy to receive any feedback and ideas for about additional features. Any
-input and pull requests are very welcome and encouraged. If you'd like to help
-or have ideas, get in touch with me at @luke in the elmlang Slack!
