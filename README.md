@@ -10,6 +10,7 @@ import HttpBuilder exposing (..)
 import Json.Decode as Decode
 import Json.Encode as Encode
 
+type alias Model = { items : List String }
 
 itemsDecoder : Decode.Decoder (List String)
 itemsDecoder =
@@ -22,13 +23,10 @@ itemEncoder item =
         [ ("item", Encode.string item) ]
 
 
-handleRequestComplete : Result Http.Error (List String) -> Msg
-handleRequestComplete result =
-    -- Handle the result
-
 {-| addItem will send a post request to
 `"http://example.com/api/items?hello=world"` with the given JSON body, a
 custom header, and cookies included. It'll try to decode with `itemsDecoder`.
+
 -}
 addItem : String -> Cmd Msg
 addItem item =
@@ -37,7 +35,23 @@ addItem item =
         |> withHeader "X-My-Header" "Some Header Value"
         |> withJsonBody (itemEncoder item)
         |> withTimeout 10000
-        |> withExpectJson itemsDecoder
+        |> withExpectJson GotItem itemsDecoder
         |> withCredentials
-        |> send handleRequestComplete
+        |> send
+
+type Msg = GotItem (Result Http.Error (List String))
+
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        GotItem (Ok items) ->
+          ( { model | items = items }
+          , Cmd.none
+          )
+
+        GotItem (Err err) ->
+          -- Handle the error...
+          let _ = Debug.log (Debug.toString err)
+          in (model, Cmd.none)
+
 ```
