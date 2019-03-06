@@ -19,11 +19,9 @@ main =
 
 -- MODEL
 
+type Status a = Loading | Loaded a | Failure
 
-type Model
-  = Failure
-  | Loading
-  | Success String
+type alias Model = Status String
 
 
 init : () -> (Model, Cmd Msg)
@@ -50,7 +48,7 @@ update msg model =
     GotText result ->
       case result of
         Ok fullText ->
-          (Success fullText, Cmd.none)
+          (Loaded fullText, Cmd.none)
 
         Err _ ->
           (Failure, Cmd.none)
@@ -78,5 +76,5 @@ view model =
     Loading ->
       text "Loading..."
 
-    Success fullText ->
+    Loaded fullText ->
       pre [] [ text fullText ]

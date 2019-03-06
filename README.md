@@ -10,7 +10,9 @@ import HttpBuilder exposing (..)
 import Json.Decode as Decode
 import Json.Encode as Encode
 
-type alias Model = { items : List String }
+type Status a = Loading | Loaded a | Failure
+
+type alias Model = { items : Status (List String) }
 
 itemsDecoder : Decode.Decoder (List String)
 itemsDecoder =
@@ -45,13 +47,11 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         GotItem (Ok items) ->
-          ( { model | items = items }
+          ( { model | items = Loaded items }
           , Cmd.none
           )
 
         GotItem (Err err) ->
-          -- Handle the error...
-          let _ = Debug.log (Debug.toString err)
-          in (model, Cmd.none)
+          ( { model | items = Failure } , Cmd.none)
 
 ```
