@@ -11,7 +11,6 @@ module HttpBuilder
         , requestUrl
         , send
         , toRequest
-        , toTask
         , trace
         , withBearerToken
         , withBody
@@ -50,7 +49,7 @@ configuration than what is provided by `elm-http` out of the box.
 
 # Make the request
 
-@docs toRequest, toTask, send
+@docs toRequest, send
 
 
 # Retreive data about the request
@@ -70,15 +69,14 @@ import Task exposing (Task)
 import Time
 import Url
 
-
 {-| A type for chaining request configuration
 -}
-type alias RequestBuilder a =
+type alias RequestBuilder msg =
     { method : String
     , headers : List Http.Header
     , url : String
     , body : Http.Body
-    , expect : Http.Expect a
+    , expect : Http.Expect msg
     , timeout : Maybe Float
     , withCredentials : Bool
     , queryParams : List ( String, String )
@@ -89,10 +87,10 @@ type alias RequestBuilder a =
 requestWithMethodAndUrl : String -> String -> RequestBuilder ()
 requestWithMethodAndUrl method url =
     { method = method
-    , url = url
     , headers = []
+    , url = url
     , body = Http.emptyBody
-    , expect = Http.expectStringResponse (\_ -> Ok ())
+    , expect = Http.expectString (\_ -> ())
     , timeout = Nothing
     , withCredentials = False
     , queryParams = []
@@ -186,7 +184,7 @@ head =
         |> withHeader "Content-Type" "application/json"
 
 -}
-withHeader : String -> String -> RequestBuilder a -> RequestBuilder a
+withHeader : String -> String -> RequestBuilder msg -> RequestBuilder msg
 withHeader key value builder =
     { builder | headers = Http.header key value :: builder.headers }
 
@@ -197,7 +195,7 @@ withHeader key value builder =
         |> withHeaders [("Content-Type", "application/json"), ("Accept", "application/json")]
 
 -}
-withHeaders : List ( String, String ) -> RequestBuilder a -> RequestBuilder a
+withHeaders : List ( String, String ) -> RequestBuilder msg -> RequestBuilder msg
 withHeaders headerPairs builder =
     { builder
         | headers = List.map (\( key, value ) -> Http.header key value) headerPairs ++ builder.headers
@@ -210,7 +208,7 @@ withHeaders headerPairs builder =
         |> withBearerToken "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhIjoiYSJ9.MvhYYpYBuN1rUaV0GGnQGvr889zY0xSc20Lnt8nMTfE"
 
 -}
-withBearerToken : String -> RequestBuilder a -> RequestBuilder a
+withBearerToken : String -> RequestBuilder msg -> RequestBuilder msg
 withBearerToken value builder =
     { builder | headers = Http.header "Authorization" ("Bearer " ++ value) :: builder.headers }
 
@@ -221,7 +219,7 @@ withBearerToken value builder =
         |> withBody (Http.stringBody "text/plain" "Hello!")
 
 -}
-withBody : Http.Body -> RequestBuilder a -> RequestBuilder a
+withBody : Http.Body -> RequestBuilder msg -> RequestBuilder msg
 withBody body builder =
     { builder | body = body }
 
@@ -232,7 +230,7 @@ withBody body builder =
         |> withStringBody "application/json" """{ "sortBy": "coolness", "take": 10 }"""
 
 -}
-withStringBody : String -> String -> RequestBuilder a -> RequestBuilder a
+withStringBody : String -> String -> RequestBuilder msg -> RequestBuilder msg
 withStringBody contentType value =
     withBody <| Http.stringBody contentType value
 
@@ -248,7 +246,7 @@ withStringBody contentType value =
         |> withJsonBody params
 
 -}
-withJsonBody : Encode.Value -> RequestBuilder a -> RequestBuilder a
+withJsonBody : Encode.Value -> RequestBuilder msg -> RequestBuilder msg
 withJsonBody value =
     withBody <| Http.jsonBody value
 
@@ -262,7 +260,7 @@ your type signatures.
         |> withMultipartStringBody [("user", JS.encode user)]
 
 -}
-withMultipartStringBody : List ( String, String ) -> RequestBuilder a -> RequestBuilder a
+withMultipartStringBody : List ( String, String ) -> RequestBuilder msg -> RequestBuilder msg
 withMultipartStringBody partPairs =
     withBody <| Http.multipartBody <| List.map (\( key, value ) -> Http.stringPart key value) partPairs
 
@@ -273,7 +271,7 @@ withMultipartStringBody partPairs =
         |> withUrlEncodedBody [("user", "Luke"), ("pwd", "secret")]
 
 -}
-withUrlEncodedBody : List ( String, String ) -> RequestBuilder a -> RequestBuilder a
+withUrlEncodedBody : List ( String, String ) -> RequestBuilder msg -> RequestBuilder msg
 withUrlEncodedBody =
     joinUrlEncoded >> withStringBody "application/x-www-form-urlencoded"
 
@@ -284,7 +282,7 @@ withUrlEncodedBody =
         |> withTimeout (10 * Time.second)
 
 -}
-withTimeout : Float -> RequestBuilder a -> RequestBuilder a
+withTimeout : Float -> RequestBuilder msg -> RequestBuilder msg
 withTimeout timeout builder =
     { builder | timeout = Just timeout }
 
@@ -296,7 +294,7 @@ withTimeout timeout builder =
         |> withCredentials
 
 -}
-withCredentials : RequestBuilder a -> RequestBuilder a
+withCredentials : RequestBuilder msg -> RequestBuilder msg
 withCredentials builder =
     { builder | withCredentials = True }
 
@@ -304,10 +302,10 @@ withCredentials builder =
 {-| Choose an `Expect` for the request
 
     get "https://example.com/api/items/1"
-        |> withExpect (Http.expectJson itemsDecoder)
+        |> withExpect (Http.expectJson GotItem itemsDecoder)
 
 -}
-withExpect : Http.Expect b -> RequestBuilder a -> RequestBuilder b
+withExpect : Http.Expect b -> RequestBuilder msg -> RequestBuilder b
 withExpect expect builder =
     { method = builder.method
     , headers = builder.headers
@@ -324,11 +322,11 @@ withExpect expect builder =
 {-| Choose a Json `Expect` for the request
 
     get "https://example.com/api/items/1"
-        |> withExpectJson itemsDecoder
+        |> withExpectJson GotItem itemsDecoder
 
 -}
-withExpectJson : Decoder b -> RequestBuilder a -> RequestBuilder b
-withExpectJson decoder builder =
+withExpectJson : (Result Http.Error a -> msg) -> Decoder a -> RequestBuilder b -> RequestBuilder msg
+withExpectJson toMsg decoder builder =
     { method = builder.method
     , headers = builder.headers
     , url = builder.url
@@ -337,18 +335,18 @@ withExpectJson decoder builder =
     , withCredentials = builder.withCredentials
     , queryParams = builder.queryParams
     , cacheBuster = builder.cacheBuster
-    , expect = Http.expectJson decoder
+    , expect = Http.expectJson toMsg decoder
     }
 
 
 {-| Choose a String `Expect` for the request
 
     get "https://example.com/api/items/1"
-        |> withExpectString
+        |> withExpectString GotItem
 
 -}
-withExpectString : RequestBuilder a -> RequestBuilder String
-withExpectString builder =
+withExpectString : (Result Http.Error String -> msg) -> RequestBuilder b -> RequestBuilder msg
+withExpectString toMsg builder =
     { method = builder.method
     , headers = builder.headers
     , url = builder.url
@@ -357,7 +355,7 @@ withExpectString builder =
     , withCredentials = builder.withCredentials
     , queryParams = builder.queryParams
     , cacheBuster = builder.cacheBuster
-    , expect = Http.expectString
+    , expect = Http.expectString toMsg
     }
 
 
@@ -368,7 +366,7 @@ withExpectString builder =
     -- sends a request to https://example.com/api/items/1?hello=world
 
 -}
-withQueryParam : String -> String -> RequestBuilder a -> RequestBuilder a
+withQueryParam : String -> String -> RequestBuilder msg -> RequestBuilder msg
 withQueryParam key value builder =
     withQueryParams [ ( key, value ) ] builder
 
@@ -381,7 +379,7 @@ withQueryParam key value builder =
     -- sends a request to https://example.com/api/items/1?hello=world&foo=bar&baz=qux
 
 -}
-withQueryParams : List ( String, String ) -> RequestBuilder a -> RequestBuilder a
+withQueryParams : List ( String, String ) -> RequestBuilder msg -> RequestBuilder msg
 withQueryParams queryParams builder =
     { builder | queryParams = builder.queryParams ++ queryParams }
 
@@ -401,7 +399,7 @@ query param will be given a value with the current timestamp.
     -- makes a request to https://example.com/api/items?cache_buster=1481633217383
 
 -}
-withCacheBuster : String -> RequestBuilder a -> RequestBuilder a
+withCacheBuster : String -> RequestBuilder msg -> RequestBuilder msg
 withCacheBuster paramName builder =
     { builder | cacheBuster = Just paramName }
 
@@ -409,7 +407,7 @@ withCacheBuster paramName builder =
 {-| Convert the RequestBuilder to a string representation of the URL
 with all options applied.
 -}
-requestUrl : RequestBuilder a -> String
+requestUrl : RequestBuilder msg -> String
 requestUrl builder =
     let
         encodedParams =
@@ -433,59 +431,28 @@ Things that will be lost:
   - Attaching a cache buster to requests using `withCacheBuster`
 
 -}
-toRequest : RequestBuilder a -> Http.Request a
+toRequest : RequestBuilder msg -> Cmd msg
 toRequest builder =
-    Http.request
+    let req = if builder.withCredentials
+              then Http.riskyRequest
+              else Http.request
+
+    in req
         { method = builder.method
         , url = requestUrl builder
         , headers = builder.headers
         , body = builder.body
         , expect = builder.expect
         , timeout = builder.timeout
-        , withCredentials = builder.withCredentials
+        , tracker = Nothing
         }
-
-
-{-| Convert the RequestBuilder to a Task with all options applied. `toTask`
-differs from `toRequest` in that it retains all extra behavior allowed by
-HttpBuilder, including
-
-  - Attaching a cache buster to requests using `withCacheBuster`
-
--}
-toTask : RequestBuilder a -> Task Http.Error a
-toTask builder =
-    case builder.cacheBuster of
-        Just paramName ->
-            toTaskWithCacheBuster paramName builder
-
-        Nothing ->
-            toTaskPlain builder
-
-
-toTaskPlain : RequestBuilder a -> Task Http.Error a
-toTaskPlain builder =
-    Http.toTask <| toRequest builder
-
-
-toTaskWithCacheBuster : String -> RequestBuilder a -> Task Http.Error a
-toTaskWithCacheBuster paramName builder =
-    let
-        request timestamp =
-            builder
-                |> withQueryParams [ ( paramName, String.fromInt (Time.posixToMillis timestamp) ) ]
-                |> toTaskPlain
-    in
-        Time.now |> Task.andThen request
 
 
 {-| Send the request
 -}
-send : (Result Http.Error a -> msg) -> RequestBuilder a -> Cmd msg
-send tagger builder =
-    builder
-        |> toTask
-        |> Task.attempt tagger
+send : RequestBuilder msg -> Cmd msg
+send builder =
+    toRequest builder
 
 
 joinUrlEncoded : List ( String, String ) -> String
