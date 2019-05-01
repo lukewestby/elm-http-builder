@@ -5,7 +5,8 @@
     "license": "MIT",
     "version": "7.0.0",
     "exposed-modules": [
-        "HttpBuilder"
+        "HttpBuilder",
+        "HttpBuilder.Task"
     ],
     "elm-version": "0.19.0 <= v < 0.20.0",
     "dependencies": {
