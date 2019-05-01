@@ -1,10 +1,10 @@
-module HttpBuilder exposing
+module HttpBuilder.Task exposing
     ( RequestBuilder, get, post, put, patch, delete, options, trace, head
     , withHeader, withHeaders, withBody, withStringBody, withJsonBody
     , withMultipartStringBody, withUrlEncodedBody, withTimeout, withCredentials
-    , withExpect
+    , withResolver
     , withBearerToken
-    , request
+    , toTask
     )
 
 {-| Extra helpers for more easily building Http requests that require greater
@@ -20,13 +20,13 @@ configuration than what is provided by `elm/http` out of the box.
 
 @docs withHeader, withHeaders, withBody, withStringBody, withJsonBody
 @docs withMultipartStringBody, withUrlEncodedBody, withTimeout, withCredentials
-@docs withExpect
+@docs withResolver
 @docs withBearerToken
 
 
 # Make the request
 
-@docs request
+@docs toTask
 
 -}
 
@@ -43,24 +43,24 @@ import Url.Builder as UrlBuilder
 
 {-| A type for chaining request configuration
 -}
-type alias RequestBuilder msg =
+type alias RequestBuilder x a =
     { method : String
     , headers : List Http.Header
     , url : String
     , body : Http.Body
-    , expect : Http.Expect msg
+    , resolver : Http.Resolver x a
     , timeout : Maybe Float
     , withCredentials : Bool
     }
 
 
-requestWithMethodAndUrl : String -> String -> RequestBuilder ()
+requestWithMethodAndUrl : String -> String -> RequestBuilder x ()
 requestWithMethodAndUrl method url =
     { method = method
     , headers = []
     , url = url
     , body = Http.emptyBody
-    , expect = Http.expectString (\_ -> ())
+    , resolver = Http.stringResolver (\_ -> Ok ())
     , timeout = Nothing
     , withCredentials = False
     }
@@ -71,7 +71,7 @@ requestWithMethodAndUrl method url =
     get "https://example.com/api/items/1"
 
 -}
-get : String -> RequestBuilder ()
+get : String -> RequestBuilder x ()
 get =
     requestWithMethodAndUrl "GET"
 
@@ -81,7 +81,7 @@ get =
     post "https://example.com/api/items"
 
 -}
-post : String -> RequestBuilder ()
+post : String -> RequestBuilder x ()
 post =
     requestWithMethodAndUrl "POST"
 
@@ -91,7 +91,7 @@ post =
     put "https://example.com/api/items/1"
 
 -}
-put : String -> RequestBuilder ()
+put : String -> RequestBuilder x ()
 put =
     requestWithMethodAndUrl "PUT"
 
@@ -101,7 +101,7 @@ put =
     patch "https://example.com/api/items/1"
 
 -}
-patch : String -> RequestBuilder ()
+patch : String -> RequestBuilder x ()
 patch =
     requestWithMethodAndUrl "PATCH"
 
@@ -111,7 +111,7 @@ patch =
     delete "https://example.com/api/items/1"
 
 -}
-delete : String -> RequestBuilder ()
+delete : String -> RequestBuilder x ()
 delete =
     requestWithMethodAndUrl "DELETE"
 
@@ -121,7 +121,7 @@ delete =
     options "https://example.com/api/items/1"
 
 -}
-options : String -> RequestBuilder ()
+options : String -> RequestBuilder x ()
 options =
     requestWithMethodAndUrl "OPTIONS"
 
@@ -131,7 +131,7 @@ options =
     trace "https://example.com/api/items/1"
 
 -}
-trace : String -> RequestBuilder ()
+trace : String -> RequestBuilder x ()
 trace =
     requestWithMethodAndUrl "TRACE"
 
@@ -141,7 +141,7 @@ trace =
     head "https://example.com/api/items/1"
 
 -}
-head : String -> RequestBuilder ()
+head : String -> RequestBuilder x ()
 head =
     requestWithMethodAndUrl "HEAD"
 
@@ -152,7 +152,7 @@ head =
         |> withHeader "Content-Type" "application/json"
 
 -}
-withHeader : String -> String -> RequestBuilder msg -> RequestBuilder msg
+withHeader : String -> String -> RequestBuilder x a -> RequestBuilder x a
 withHeader key value builder =
     { builder | headers = Http.header key value :: builder.headers }
 
@@ -163,7 +163,7 @@ withHeader key value builder =
         |> withHeaders [ ( "Content-Type", "application/json" ), ( "Accept", "application/json" ) ]
 
 -}
-withHeaders : List ( String, String ) -> RequestBuilder msg -> RequestBuilder msg
+withHeaders : List ( String, String ) -> RequestBuilder x a -> RequestBuilder x a
 withHeaders headerPairs builder =
     { builder
         | headers = List.map (\( key, value ) -> Http.header key value) headerPairs ++ builder.headers
@@ -176,7 +176,7 @@ withHeaders headerPairs builder =
         |> withBearerToken "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhIjoiYSJ9.MvhYYpYBuN1rUaV0GGnQGvr889zY0xSc20Lnt8nMTfE"
 
 -}
-withBearerToken : String -> RequestBuilder msg -> RequestBuilder msg
+withBearerToken : String -> RequestBuilder x a -> RequestBuilder x a
 withBearerToken value builder =
     { builder | headers = Http.header "Authorization" ("Bearer " ++ value) :: builder.headers }
 
@@ -187,7 +187,7 @@ withBearerToken value builder =
         |> withBody (Http.stringBody "text/plain" "Hello!")
 
 -}
-withBody : Http.Body -> RequestBuilder msg -> RequestBuilder msg
+withBody : Http.Body -> RequestBuilder x a -> RequestBuilder x a
 withBody body builder =
     { builder | body = body }
 
@@ -198,7 +198,7 @@ withBody body builder =
         |> withStringBody "application/json" """{ "sortBy": "coolness", "take": 10 }"""
 
 -}
-withStringBody : String -> String -> RequestBuilder msg -> RequestBuilder msg
+withStringBody : String -> String -> RequestBuilder x a -> RequestBuilder x a
 withStringBody contentType value =
     withBody <| Http.stringBody contentType value
 
@@ -214,7 +214,7 @@ withStringBody contentType value =
         |> withJsonBody params
 
 -}
-withJsonBody : Encode.Value -> RequestBuilder msg -> RequestBuilder msg
+withJsonBody : Encode.Value -> RequestBuilder x a -> RequestBuilder x a
 withJsonBody value =
     withBody <| Http.jsonBody value
 
@@ -228,7 +228,7 @@ your type signatures.
         |> withMultipartStringBody [ ( "user", JS.encode user ) ]
 
 -}
-withMultipartStringBody : List ( String, String ) -> RequestBuilder msg -> RequestBuilder msg
+withMultipartStringBody : List ( String, String ) -> RequestBuilder x a -> RequestBuilder x a
 withMultipartStringBody partPairs =
     withBody <| Http.multipartBody <| List.map (\( key, value ) -> Http.stringPart key value) partPairs
 
@@ -239,7 +239,7 @@ withMultipartStringBody partPairs =
         |> withUrlEncodedBody [ ( "user", "Luke" ), ( "pwd", "secret" ) ]
 
 -}
-withUrlEncodedBody : List ( String, String ) -> RequestBuilder msg -> RequestBuilder msg
+withUrlEncodedBody : List ( String, String ) -> RequestBuilder x a -> RequestBuilder x a
 withUrlEncodedBody parts =
     let
         encoded =
@@ -265,7 +265,7 @@ withUrlEncodedBody parts =
         |> withTimeout (10 * Time.second)
 
 -}
-withTimeout : Float -> RequestBuilder msg -> RequestBuilder msg
+withTimeout : Float -> RequestBuilder x a -> RequestBuilder x a
 withTimeout timeout builder =
     { builder | timeout = Just timeout }
 
@@ -277,47 +277,46 @@ withTimeout timeout builder =
         |> withCredentials
 
 -}
-withCredentials : RequestBuilder msg -> RequestBuilder msg
+withCredentials : RequestBuilder x a -> RequestBuilder x a
 withCredentials builder =
     { builder | withCredentials = True }
 
 
-{-| Choose an `Expect` for the request
+{-| Choose a `Resolver` for the request
 
     get "https://example.com/api/items/1"
-        |> withExpect (Http.expectJson GotItem itemsDecoder)
+        |> withResolver (Http.stringResolver toResult)
 
 -}
-withExpect : Http.Expect b -> RequestBuilder msg -> RequestBuilder b
-withExpect expect builder =
+withResolver : Http.Resolver y b -> RequestBuilder x a -> RequestBuilder y b
+withResolver resolver builder =
     { method = builder.method
     , headers = builder.headers
     , url = builder.url
     , body = builder.body
     , timeout = builder.timeout
     , withCredentials = builder.withCredentials
-    , expect = expect
+    , resolver = resolver
     }
 
 
 {-| Send the request
 -}
-request : RequestBuilder msg -> Cmd msg
-request builder =
+toTask : RequestBuilder x a -> Task x a
+toTask builder =
     let
         req =
             if builder.withCredentials then
-                Http.riskyRequest
+                Http.riskyTask
 
             else
-                Http.request
+                Http.task
     in
     req
         { method = builder.method
         , url = builder.url
         , headers = builder.headers
         , body = builder.body
-        , expect = builder.expect
+        , resolver = builder.resolver
         , timeout = builder.timeout
-        , tracker = Nothing
         }

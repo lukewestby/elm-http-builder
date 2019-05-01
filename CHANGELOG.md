@@ -1,3 +1,32 @@
+### 7.0.0
+
+Upgrades the underlying elm/http version to the 2.0.0 API.
+
+#### Additions
+
+- `HttpBuilder.Task`: a new module that allows you to build a call to `Http.task`
+   or `Http.riskyTask`. We need this because sending a request as a `Task` is
+   sufficiently different from using `Http.request` that we can't construct
+   them using the same type and still have a nice API.
+   
+#### Removals
+   
+- `HttpBuilder.withExpectJson`, `HttpBuilder.withExpectString`: just use `withExpect`
+- `HttpBuilder.toRequest`: the `Request` type doesn't exist anymore
+- `HttpBuilder.queryParam`, `HttpBuilder.queryParams`: use the `Url.Builder` module
+  from elm/url to build up URLs
+- `HttpBuilder.requestUrl`: the `url` field on `RequestBuilder` is the full URL now
+
+#### Changes
+
+- `HttpBuilder.send` -> `HttpBuilder.request`: to match the name of the related
+  function in `Http`
+
+#### Stuff
+
+- Upgrades elm/http version to 2.0.0
+- Thanks to @dvekeman for doing a bunch of work toward this release
+
 ### 5.2.0
 
 #### Additions

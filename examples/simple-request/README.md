@@ -14,7 +14,7 @@ Open the generated `index.html`.
   "https://elm-lang.org/assets/public-opinion.txt"
       |> HttpBuilder.get
       |> HttpBuilder.withExpect (Http.expectString GotText)
-      |> HttpBuilder.send
+      |> HttpBuilder.request
 ```
 
 Upon completion either an `Ok` or an `Error` result will be processed

@@ -1,18 +1,20 @@
 # elm-http-builder
 
-Chainable functions for building HTTP requests
-
-**Need help? Join the #http-builder channel in the [Elm Slack](https://elmlang.herokuapp.com)!**
+Pipeable functions for building HTTP requests
 
 ```elm
 import Http
-import HttpBuilder exposing (..)
+import HttpBuilder
 import Json.Decode as Decode
 import Json.Encode as Encode
+import Url.Builder as UrlBuilder
+
 
 type Status a = Loading | Loaded a | Failure
 
+
 type alias Model = { items : Status (List String) }
+
 
 itemsDecoder : Decode.Decoder (List String)
 itemsDecoder =
@@ -26,22 +28,26 @@ itemEncoder item =
 
 
 {-| addItem will send a post request to
-`"http://example.com/api/items?hello=world"` with the given JSON body, a
-custom header, and cookies included. It'll try to decode with `itemsDecoder`.
+`"http://example.com/api/items?hello=world"` with the given JSON body and a
+custom header. It'll try to decode with `itemsDecoder`.
 
 -}
 addItem : String -> Cmd Msg
 addItem item =
-    HttpBuilder.post "http://example.com/api/items"
-        |> withQueryParams [ ("hello", "world") ]
-        |> withHeader "X-My-Header" "Some Header Value"
-        |> withJsonBody (itemEncoder item)
-        |> withTimeout 10000
-        |> withExpectJson GotItem itemsDecoder
-        |> withCredentials
-        |> send
+    UrlBuilder.crossOrigin
+        "http://example.com"
+        [ "api", "items" ]
+        [ UrlBuilder.string "hello" "world" ]
+        |> HttpBuilder.post
+        |> HttpBuilder.withHeader "X-My-Header" "Some Header Value"
+        |> HttpBuilder.withJsonBody (itemEncoder item)
+        |> HttpBuilder.withTimeout 10000
+        |> HttpBuilder.withExpect (Http.expectJson GotItem itemsDecoder)
+        |> HttpBuilder.request
+
 
 type Msg = GotItem (Result Http.Error (List String))
+
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
