@@ -255,7 +255,7 @@ withUrlEncodedBody parts =
                 encoded
     in
     withStringBody
-        "application/x-www-form-urlencode"
+        "application/x-www-form-urlencoded"
         trimmedQuestionMark
 
 
