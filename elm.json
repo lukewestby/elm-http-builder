@@ -3,7 +3,7 @@
     "name": "lukewestby/elm-http-builder",
     "summary": "Pipeable functions for building HTTP requests",
     "license": "MIT",
-    "version": "7.0.1",
+    "version": "8.0.0",
     "exposed-modules": [
         "HttpBuilder",
         "HttpBuilder.Task"

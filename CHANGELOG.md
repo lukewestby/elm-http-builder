@@ -1,3 +1,25 @@
+### 8.0.0
+
+Adds support for `tracker` on requests
+
+#### Additions
+
+- `HttpBuilder.withTracker`: adds a tracker key to the request builder
+
+#### Changes
+
+- Add a new property `tracker` to `RequestBuilder`
+
+### 7.0.1
+
+Fixes misspelled content-type for x-www-form-urlencoded bodies
+
+#### Changes
+
+- Fixes misspelled content-type for x-www-form-urlencoded bodies. Prior to this change
+it was spelled `x-www-form-urlencode`, which is missing the final `d`. Fix provided by
+@TheAlemazing.
+
 ### 7.0.0
 
 Upgrades the underlying elm/http version to the 2.0.0 API.
