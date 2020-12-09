@@ -4,6 +4,7 @@ module HttpBuilder exposing
     , withMultipartStringBody, withUrlEncodedBody, withTimeout, withCredentials
     , withExpect
     , withBearerToken
+    , withTracker
     , request
     )
 
@@ -22,6 +23,7 @@ configuration than what is provided by `elm/http` out of the box.
 @docs withMultipartStringBody, withUrlEncodedBody, withTimeout, withCredentials
 @docs withExpect
 @docs withBearerToken
+@docs withTracker
 
 
 # Make the request
@@ -31,13 +33,9 @@ configuration than what is provided by `elm/http` out of the box.
 -}
 
 import Http
-import Json.Decode exposing (Decoder)
 import Json.Encode as Encode
 import Maybe exposing (Maybe(..))
 import String
-import Task exposing (Task)
-import Time
-import Url
 import Url.Builder as UrlBuilder
 
 
@@ -51,6 +49,7 @@ type alias RequestBuilder msg =
     , expect : Http.Expect msg
     , timeout : Maybe Float
     , withCredentials : Bool
+    , tracker : Maybe String
     }
 
 
@@ -63,6 +62,7 @@ requestWithMethodAndUrl method url =
     , expect = Http.expectString (\_ -> ())
     , timeout = Nothing
     , withCredentials = False
+    , tracker = Nothing
     }
 
 
@@ -297,7 +297,19 @@ withExpect expect builder =
     , timeout = builder.timeout
     , withCredentials = builder.withCredentials
     , expect = expect
+    , tracker = builder.tracker
     }
+
+
+{-| Set the `tracker` on the request.
+
+    get "<https://example.com/api/items/1">
+        |> withTracker "tracker"
+
+-}
+withTracker : String -> RequestBuilder msg -> RequestBuilder msg
+withTracker tracker builder =
+    { builder | tracker = Just tracker }
 
 
 {-| Send the request
@@ -319,5 +331,5 @@ request builder =
         , body = builder.body
         , expect = builder.expect
         , timeout = builder.timeout
-        , tracker = Nothing
+        , tracker = builder.tracker
         }
